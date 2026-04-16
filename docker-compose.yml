@@ -9,7 +9,10 @@ services:
     env_file:
       - ./backend/.env
     environment:
-      - DATABASE_URL=sqlite+aiosqlite:////app/data/hackathon.db
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+    depends_on:
+      db:
+        condition: service_healthy
     volumes:
       - backend_data:/app/data
     healthcheck:
@@ -18,6 +21,36 @@ services:
       timeout: 10s
       retries: 3
       start_period: 60s
+    restart: always
+
+  db:
+    image: postgres:17-alpine
+    container_name: nexus_db
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+    ports:
+      - "5433:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: always
+
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: nexus_pgadmin
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=admin@nexus.com
+      - PGADMIN_DEFAULT_PASSWORD=admin
+    ports:
+      - "5050:80"
+    depends_on:
+      - db
     restart: always
 
   frontend:
@@ -38,3 +71,5 @@ services:
 
 volumes:
   backend_data:
+  db_data:
+  pgadmin_data:

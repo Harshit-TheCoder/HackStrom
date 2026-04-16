@@ -75,12 +75,15 @@ class MFARequest(BaseModel):
 
 @router.post("/register")
 async def register(user_in: UserCreate, db: AsyncSession = Depends(get_db)):
-    encrypted_email = encrypt_pii(user_in.email)
+    # Sanitize
+    email = user_in.email.strip().lower()
+    encrypted_email = encrypt_pii(email)
     
-    # Check if duplicate
-    stmt = select(User).where(User.encrypted_email == encrypted_email)
+    # Check if duplicate - Using direct DB query for reliability
+    stmt = select(User)
     result = await db.execute(stmt)
-    if result.scalars().first():
+    all_users = result.scalars().all()
+    if any(decrypt_pii(u.encrypted_email) == email for u in all_users):
         raise HTTPException(status_code=400, detail="Email already registered")
         
     new_user = User(
@@ -88,23 +91,20 @@ async def register(user_in: UserCreate, db: AsyncSession = Depends(get_db)):
         encrypted_full_name=encrypt_pii(user_in.full_name) if user_in.full_name else None,
         hashed_password=get_password_hash(user_in.password),
         role="User",
-        mfa_enabled=True # MFA True by default for hackathon security showcase
+        mfa_enabled=True 
     )
     db.add(new_user)
     await db.commit()
-    return {"msg": "User created successfully. Please login to receive your MFA code."}
+    return {"msg": "User created successfully. Please LOGIN to receive your MFA code via email."}
 
 @router.post("/login")
 async def login(user_in: UserLogin, background_tasks: BackgroundTasks, db: AsyncSession = Depends(get_db)):
-    # Very basic linear search for mock hackathon due to Fernet randomized encryption 
-    # (in prod, use deterministically padded hashing for email lookups)
+    email = user_in.email.strip().lower()
+    
+    # 🔍 Search for user
     result = await db.execute(select(User))
     all_users = result.scalars().all()
-    user = None
-    for u in all_users:
-        if decrypt_pii(u.encrypted_email) == user_in.email:
-            user = u
-            break
+    user = next((u for u in all_users if decrypt_pii(u.encrypted_email) == email), None)
             
     if not user or not verify_password(user_in.password, user.hashed_password):
         raise HTTPException(status_code=401, detail="Incorrect email or password")
@@ -112,9 +112,12 @@ async def login(user_in: UserLogin, background_tasks: BackgroundTasks, db: Async
     if user.mfa_enabled:
         otp = str(random.randint(100000, 999999))
         user.mfa_secret = otp
+        print(f"DEBUG: Setting MFA secret for {email} to {otp}")
         await db.commit()
-        # Queue real email sending in a completely detached thread to prevent socket hanging
-        threading.Thread(target=send_mfa_email, args=(user_in.email, otp), daemon=True).start()
+        await db.refresh(user) # ⬅️ Crucial: Ensure the object is synchronized with the DB
+        
+        # Queue real email sending
+        threading.Thread(target=send_mfa_email, args=(email, otp), daemon=True).start()
         return {"msg": "MFA required", "mfa_pending": True}
         
     access_token = create_access_token(subject=user.id, roles=user.role)
@@ -122,11 +125,22 @@ async def login(user_in: UserLogin, background_tasks: BackgroundTasks, db: Async
 
 @router.post("/verify-mfa")
 async def verify_mfa(mfa_in: MFARequest, db: AsyncSession = Depends(get_db)):
+    email = mfa_in.email.strip().lower()
+    otp_input = mfa_in.otp.strip()
+
+    # 🔍 Find fresh user state from DB
     result = await db.execute(select(User))
     all_users = result.scalars().all()
-    user = next((u for u in all_users if decrypt_pii(u.encrypted_email) == mfa_in.email), None)
+    user = next((u for u in all_users if decrypt_pii(u.encrypted_email) == email), None)
     
-    if not user or user.mfa_secret != mfa_in.otp:
+    if not user:
+        print(f"DEBUG: MFA failed - User {email} not found")
+        raise HTTPException(status_code=401, detail="User not found")
+
+    print(f"DEBUG: MFA Verification for {email}: Input='{otp_input}', Stored='{user.mfa_secret}'")
+    
+    if user.mfa_secret != otp_input:
+        print(f"DEBUG: OTP mismatch! {user.mfa_secret} vs {otp_input}")
         raise HTTPException(status_code=401, detail="Invalid OTP")
         
     # clear OTP
@@ -135,27 +149,23 @@ async def verify_mfa(mfa_in: MFARequest, db: AsyncSession = Depends(get_db)):
     
     access_token = create_access_token(subject=user.id, roles=user.role)
     return {"access_token": access_token, "token_type": "bearer", "mfa_pending": False}
-    
+
 @router.post("/oauth/google")
 async def google_oauth_login(token: str = Header(...), db: AsyncSession = Depends(get_db)):
-    # Mock Google OAuth behavior: normally we'd hit google's cert endpoint to verify JWT
-    # For now, simply parsing the frontend payload stub
     try:
         import json, base64
         payload = token.split(".")[1]
         decoded = json.loads(base64.urlsafe_b64decode(payload + "=="))
-        email = decoded.get("email")
+        email = decoded.get("email").strip().lower()
     except Exception:
         raise HTTPException(401, "Invalid Google Token")
         
-    encrypted_email = encrypt_pii(email)
     result = await db.execute(select(User))
     user = next((u for u in result.scalars().all() if decrypt_pii(u.encrypted_email) == email), None)
     
     if not user:
-        # Auto-create user
         user = User(
-            encrypted_email=encrypted_email,
+            encrypted_email=encrypt_pii(email),
             hashed_password=get_password_hash("oauth_stub"),
             role="User",
             mfa_enabled=False 

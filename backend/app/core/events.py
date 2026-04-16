@@ -1,7 +1,7 @@
 import asyncio
 import json
 from datetime import datetime
-from app.db.database import AsyncSessionLocal
+from app.db.database import db_manager
 from app.db.models import FleetLog
 from app.schemas import AgentTrace
 from app.core.ws import manager
@@ -24,8 +24,8 @@ class GlobalEventBus:
         while True:
             trace: AgentTrace = await self.queue.get()
             try:
-                # Store the event into SQLite Database
-                async with AsyncSessionLocal() as db:
+                # Store the event into Database
+                async with db_manager.session() as db:
                     new_log = FleetLog(
                         shipment_id=trace.shipment_id or "SYSTEM",
                         agent_name=trace.agent_name,

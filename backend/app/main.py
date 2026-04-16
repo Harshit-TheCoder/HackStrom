@@ -11,7 +11,9 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
-from app.db.database import init_db
+from app.db import models
+from app.db.database import db_manager, init_db
+from app.core.idempotency import get_cached_request, save_request_result
 from app.modules.auth import router as auth_router
 from contextlib import asynccontextmanager
 from app.infrastructure.memory import vector_memory
@@ -247,22 +249,64 @@ async def run_simulation_loop():
 
 @app.post("/api/start", dependencies=[Depends(get_current_user)])
 @limiter.limit("10/minute")
-async def start_simulation(request: Request, background_tasks: BackgroundTasks):
+async def start_simulation(
+    request: Request, 
+    background_tasks: BackgroundTasks, 
+    current_user: models.User = Depends(get_current_user)
+):
     print("DEBUG: [api] POST /api/start received")
+    
+    # Idempotency Check
+    idempotency_key = request.headers.get("X-Idempotency-Key")
+    user_id = current_user.id
+    
+    if idempotency_key:
+        async with db_manager.session() as db:
+            cached = await get_cached_request(db, idempotency_key, "/api/start", user_id)
+            if cached:
+                return cached[1]
+    
     global simulation_running
     if not simulation_running:
         simulation_running = True
         # Kick off background task
         background_tasks.add_task(run_simulation_loop)
-    return {"status": "started"}
+    
+    res = {"status": "started"}
+    
+    if idempotency_key:
+        async with db_manager.session() as db:
+            await save_request_result(db, idempotency_key, "/api/start", 200, res, user_id)
+            
+    return res
 
 @app.post("/api/stop", dependencies=[Depends(get_current_user)])
 @limiter.limit("10/minute")
-async def stop_simulation(request: Request):
+async def stop_simulation(
+    request: Request, 
+    current_user: models.User = Depends(get_current_user)
+):
     print("DEBUG: [api] POST /api/stop received")
+    
+    # Idempotency Check
+    idempotency_key = request.headers.get("X-Idempotency-Key")
+    user_id = current_user.id
+    
+    if idempotency_key:
+        async with db_manager.session() as db:
+            cached = await get_cached_request(db, idempotency_key, "/api/stop", user_id)
+            if cached:
+                return cached[1]
+    
     global simulation_running
     simulation_running = False
-    return {"status": "stopped"}
+    res = {"status": "stopped"}
+    
+    if idempotency_key:
+        async with db_manager.session() as db:
+            await save_request_result(db, idempotency_key, "/api/stop", 200, res, user_id)
+            
+    return res
 
 @app.get("/api/state")
 async def get_state(shipment_id: str = "SHP-X9001"):
@@ -295,7 +339,21 @@ async def get_shipments(mode: str = "all"):
 
 @app.post("/api/disturb", response_model=DisturbanceResponse, dependencies=[Depends(get_current_user)])
 @limiter.limit("10/minute")
-async def create_disturbance(request: Request, req: DisturbanceRequest):
+async def create_disturbance(
+    request: Request, 
+    req: DisturbanceRequest, 
+    current_user: models.User = Depends(get_current_user)
+):
+    # Idempotency Check
+    idempotency_key = request.headers.get("X-Idempotency-Key")
+    user_id = current_user.id
+    
+    if idempotency_key:
+        async with db_manager.session() as db:
+            cached = await get_cached_request(db, idempotency_key, "/api/disturb", user_id)
+            if cached:
+                return cached[1]
+                
     # If the shipment doesn't exist, create a new separate Chaos shipment
     if req.shipment_id not in global_contexts:
         import random
@@ -327,7 +385,13 @@ async def create_disturbance(request: Request, req: DisturbanceRequest):
         target_id = req.shipment_id
 
     manual_disturbances[target_id] = req.model_dump()
-    return {"status": "success", "message": f"Injected {req.disturbance_type} into {target_id}"}
+    res = {"status": "success", "message": f"Injected {req.disturbance_type} into {target_id}"}
+    
+    if idempotency_key:
+        async with db_manager.session() as db:
+            await save_request_result(db, idempotency_key, "/api/disturb", 200, res, user_id)
+            
+    return res
 
 @app.delete("/api/disturb/{shipment_id}", dependencies=[Depends(get_current_user)])
 @limiter.limit("10/minute")

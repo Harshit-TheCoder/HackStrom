@@ -1,5 +1,6 @@
-from sqlalchemy import Column, String, Boolean, Integer
+from sqlalchemy import Column, String, Boolean, Integer, DateTime, JSON, ForeignKey
 from .database import Base
+from datetime import datetime
 
 class User(Base):
     __tablename__ = "users"
@@ -22,3 +23,14 @@ class FleetLog(Base):
     status = Column(String, nullable=False)
     logs = Column(String, nullable=False)  # JSON or comma separated string
     timestamp = Column(String, nullable=False)
+
+class IdempotentRequest(Base):
+    __tablename__ = "idempotent_requests"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    idempotency_key = Column(String, index=True, nullable=False)
+    user_id = Column(Integer, nullable=True)
+    path = Column(String, nullable=False)
+    response_status = Column(Integer, nullable=False)
+    response_body = Column(JSON, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
