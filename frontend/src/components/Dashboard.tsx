@@ -2,17 +2,20 @@
 
 import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { clearToken } from "@/lib/auth";
 import ShipmentTracker from "./ShipmentTracker";
 import LocationWeatherMap from "./LocationWeatherMap";
 import ReasoningStream from "./ReasoningStream";
 import ActionCards from "./ActionCards";
 import GlobeModel from "./GlobeModel";
-import { Play, Square, Bot, Shield, BrainCircuit, Activity, MessageSquare, Send, X, ShieldAlert } from "lucide-react";
+import { Play, Square, Bot, Shield, BrainCircuit, Activity, MessageSquare, Send, X, ShieldAlert, LogOut } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 type Role = "OPS" | "LOGISTICS" | "FINANCE";
 
 export default function Dashboard() {
+  const router = useRouter();
   const [state, setState] = useState<any>(null);
   const [logs, setLogs] = useState<any[]>([]);
   const [isRunning, setIsRunning] = useState(false);
@@ -78,6 +81,11 @@ export default function Dashboard() {
     } catch (err) {
       console.error("Failed to start/stop simulation", err);
     }
+  };
+
+  const handleLogout = () => {
+     clearToken();
+     router.push("/login");
   };
 
   const submitChat = (e?: React.FormEvent, overrideText?: string) => {
@@ -215,6 +223,9 @@ export default function Dashboard() {
           </div>
           
           <div className="flex items-center gap-4 shrink-0">
+            <button onClick={handleLogout} className="flex items-center gap-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 px-4 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-widest transition-colors">
+               <LogOut className="w-3 h-3"/> Disconnect
+            </button>
             {/* Auto-Pilot Toggle */}
             <div className="flex items-center gap-3 bg-black/40 px-3 py-1.5 rounded-full border border-white/5" onClick={() => setAutoPilot(!autoPilot)}>
               <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Auto-Pilot</span>

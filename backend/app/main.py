@@ -5,8 +5,37 @@ from app.core.ws import manager
 from app.schemas import ControlTowerContext, ShipmentData
 from app.infrastructure.weather import weather_client
 from app.orchestrator.pipeline import orchestrator
+from fastapi import Request, Response
+from starlette.middleware.base import BaseHTTPMiddleware
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+from app.db.database import init_db
+from app.modules.auth import router as auth_router
+from contextlib import asynccontextmanager
 
-app = FastAPI(title="Real-Time Supply Chain Control Tower API", version="1.0.0")
+limiter = Limiter(key_func=get_remote_address)
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Initialize DB on startup
+    await init_db()
+    yield
+
+app = FastAPI(title="Real-Time Supply Chain Control Tower API", version="1.0.0", lifespan=lifespan)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["X-XSS-Protection"] = "1; mode=block"
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+        return response
+
+app.add_middleware(SecurityHeadersMiddleware)
 
 app.add_middleware(
     CORSMiddleware,
@@ -21,8 +50,11 @@ global_context = None
 simulation_running = False
 
 @app.get("/health")
-async def health_check():
+@limiter.limit("5/minute")
+async def health_check(request: Request):
     return {"status": "ok", "message": "Backend is running"}
+
+app.include_router(auth_router, prefix="/api/auth", tags=["Authentication"])
 
 @app.websocket("/ws/logs")
 async def websocket_endpoint(websocket: WebSocket):

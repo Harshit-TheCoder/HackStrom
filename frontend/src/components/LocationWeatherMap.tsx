@@ -1,103 +1,29 @@
 "use client";
 
-import React, { useMemo } from 'react';
-import { Map, Marker, Overlay } from 'pigeon-maps';
-import { motion } from 'framer-motion';
+import React from 'react';
 import { AlertTriangle } from 'lucide-react';
+import dynamic from 'next/dynamic';
 
-const defaultCenter: [number, number] = [20.5937, 78.9629]; // India
+// Next.js requirement to prevent Leaflet from running on Server side
+const DynamicMap = dynamic(() => import('./MapComponent'), { 
+    ssr: false,
+    loading: () => <div className="w-full h-full min-h-[300px] flex items-center justify-center text-cyan-400 animate-pulse bg-black/50">Loading Geospatial Data...</div>
+});
 
 export default function LocationWeatherMap({ state }: { state: any }) {
-  const weatherData = state?.weather_data;
   const riskData = state?.risk_result;
-  
-  const markerPosition = useMemo(() => {
-    if (weatherData && weatherData.coord) {
-      return [weatherData.coord.lat, weatherData.coord.lon] as [number, number];
-    }
-    return null;
-  }, [weatherData]);
-
-  // Provide some fake coordinates for the "high risk zones" near the actual marker to draw heatmaps.
-  const riskZones = useMemo(() => {
-     if (!riskData || !markerPosition) return [];
-     if (riskData.risk_category === "LOW" || riskData.risk_category === "NOMINAL") return [];
-     
-     let zones = riskData.high_risk_zones || [];
-     
-     if (zones.length === 0) {
-        // If backend schema doesn't include it, auto-generate danger zones based on severe risk
-        zones = ["Congestion Cell", "Storm Front"];
-     }
-
-     return zones.map((zone: string, idx: number) => {
-        // Offset the zone slightly from the actual marker for visual danger areas
-        return {
-           name: zone,
-           coord: [markerPosition[0] + (idx === 0 ? 0.3 : -0.4), markerPosition[1] + (idx === 0 ? -0.3 : 0.5)] as [number, number]
-        };
-     });
-  }, [riskData, markerPosition]);
 
   return (
     <div className="w-full h-full min-h-[300px] relative rounded-xl overflow-hidden glass-panel bg-[#02040a]/80 p-0 border border-slate-700 shadow-xl shadow-cyan-900/10 flex flex-col">
       <div className="absolute inset-x-0 top-4 text-center z-10 pointer-events-none">
-        <p className="text-xs font-mono text-teal-400 tracking-widest neon-text-cyan flex items-center justify-center gap-2">
+        <p className="text-xs font-mono text-teal-400 tracking-widest neon-text-cyan flex items-center justify-center gap-2 drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)]">
           <span className="w-2 h-2 rounded-full bg-teal-400 animate-pulse hidden sm:inline-block"></span>
-          REAL-TIME SATELLITE & RISK HEATMAP
+          REAL-TIME SATELLITE & ROUTING
         </p>
       </div>
 
-      <div className="flex-1 relative filter brightness-90 contrast-125 sepia-[0.3] hue-rotate-[180deg]">
-        <Map 
-          defaultCenter={markerPosition || defaultCenter} 
-          defaultZoom={markerPosition ? 6 : 4}
-          animate={true}
-          metaWheelZoom={true}
-        >
-          {/* Render Heatmap Overlays */}
-          {riskZones.map((zone: { name: string, coord: [number, number] }, idx: number) => (
-            <Overlay key={idx} anchor={zone.coord} offset={[50, 50]}>
-               <div className="relative flex items-center justify-center w-[100px] h-[100px] pointer-events-none">
-                  <motion.div 
-                     animate={{ scale: [1, 1.5, 1], opacity: [0.4, 0.1, 0.4] }}
-                     transition={{ duration: 4, repeat: Infinity }}
-                     className="absolute inset-0 bg-red-500 rounded-full blur-xl"
-                  />
-                  <div className="absolute top-0 text-[10px] font-bold text-red-100 bg-red-900/80 px-1 rounded border border-red-500/50">
-                     ⚠️ {zone.name}
-                  </div>
-               </div>
-            </Overlay>
-          ))}
-
-          {/* Render Actual Marker */}
-          {markerPosition && (
-            <Marker width={40} anchor={markerPosition} color="#14b8a6" />
-          )}
-
-          {markerPosition && weatherData && (
-             <Overlay anchor={markerPosition} offset={[-15, 60]}>
-               <div className="bg-black/80 backdrop-blur-md border border-cyan-500/30 p-2 rounded text-slate-200 text-xs shadow-xl min-w-[150px]">
-                  <h3 className="font-bold text-sm text-cyan-400 mb-1">{weatherData.name || 'Location'}</h3>
-                  <div className="space-y-1 font-mono">
-                    <p className="capitalize flex items-center justify-between">
-                      <span className="opacity-70">Sky:</span> 
-                      <span className="font-semibold text-emerald-400">{weatherData.weather?.[0]?.description}</span>
-                    </p>
-                    <p className="flex items-center justify-between">
-                      <span className="opacity-70">Temp:</span> 
-                      <span className="font-semibold">{weatherData.main?.temp}°C</span>
-                    </p>
-                    <p className="flex items-center justify-between">
-                      <span className="opacity-70">Hum:</span> 
-                      <span className="font-semibold">{weatherData.main?.humidity}%</span>
-                    </p>
-                  </div>
-               </div>
-             </Overlay>
-          )}
-        </Map>
+      <div className="flex-1 relative z-0">
+         <DynamicMap state={state} />
       </div>
 
       {/* Enhanced Information Overlay */}
@@ -112,7 +38,7 @@ export default function LocationWeatherMap({ state }: { state: any }) {
                  <>
                    <div className="flex items-center justify-between">
                       <span className="text-slate-400">Threat Level:</span>
-                      <span className={`${riskData.risk_category === 'HIGH' ? 'text-rose-400' : 'text-amber-400'}`}>{riskData.risk_category} ({riskData.risk_score})</span>
+                      <span className={`${riskData.risk_category === 'HIGH' ? 'text-rose-400 font-bold animate-pulse' : 'text-emerald-400'}`}>{riskData.risk_category} ({riskData.risk_score})</span>
                    </div>
                    <div className="text-slate-300 opacity-90 leading-tight">
                       {riskData.reason}

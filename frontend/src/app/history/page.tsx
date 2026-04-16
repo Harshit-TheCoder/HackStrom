@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { ArrowLeft, Clock, ShieldAlert, Activity, CheckCircle, Search, Anchor } from "lucide-react";
@@ -16,8 +16,54 @@ const HISTORICAL_SHIPS = [
 
 export default function HistoryPage() {
   const [searchTerm, setSearchTerm] = useState("");
+  const [fleetLogs, setFleetLogs] = useState(HISTORICAL_SHIPS);
 
-  const filteredLogs = HISTORICAL_SHIPS.filter(s => s.id.toLowerCase().includes(searchTerm.toLowerCase()) || s.route.toLowerCase().includes(searchTerm.toLowerCase()));
+  // Dynamically pull latest state for SHP-X9001 from AI pipeline
+  useEffect(() => {
+    const fetchState = async () => {
+      try {
+        const host = window.location.hostname === 'localhost' ? '127.0.0.1' : window.location.hostname;
+        const res = await fetch(`http://${host}:8000/api/state`);
+        const data = await res.json();
+        
+        if (data && data.status !== "idle" && data.shipment) {
+           const isHighRisk = data.risk_result?.risk_category === "HIGH";
+           const isDelayed = data.eta_result && (data.eta_result.predicted_eta > data.eta_result.original_eta);
+           
+           const liveStatus = isHighRisk ? 'AT RISK' : (isDelayed ? 'DELAYED' : 'ON TIME');
+           const riskLevel = data.risk_result?.risk_category || 'NOMINAL';
+           
+           let logContext = data.monitor_result?.description || 'Active AI tracking mapping...';
+           if (data.decision_result?.options?.length > 0) {
+               logContext = `AI Intervened: Option [${data.decision_result.options[0].action}] selected. ${data.risk_result?.reason || ''}`;
+           }
+
+           setFleetLogs(prev => {
+              const newLogs = [...prev];
+              // Target SHP-X9001 representing our live simulation
+              const idx = newLogs.findIndex(s => s.id === data.shipment.id);
+              if (idx !== -1) {
+                  newLogs[idx] = {
+                      ...newLogs[idx],
+                      status: liveStatus,
+                      risk_level: riskLevel,
+                      logs: `${logContext} [Loc: ${data.shipment.current_location}]`,
+                      time: "LIVE",
+                  };
+              }
+              return newLogs;
+           });
+        }
+      } catch (err) {
+        // Silent catch for hackathon
+      }
+    };
+
+    const interval = setInterval(fetchState, 3000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const filteredLogs = fleetLogs.filter(s => s.id.toLowerCase().includes(searchTerm.toLowerCase()) || s.route.toLowerCase().includes(searchTerm.toLowerCase()));
 
   return (
     <div className="min-h-screen bg-[#02040a] p-4 md:p-8 font-sans text-slate-200">
