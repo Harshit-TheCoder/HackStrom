@@ -60,6 +60,10 @@ export default function Dashboard() {
         const data = await res.json();
         if (data && data.status !== "idle") {
           setState(data);
+          // Sync autoPilot state from backend
+          if (data.auto_pilot_mode !== undefined) {
+             setAutoPilot(data.auto_pilot_mode);
+          }
         }
       } catch (err) {
         // Silently ignore fetch errors to avoid console spam
@@ -134,6 +138,23 @@ export default function Dashboard() {
       }
     } catch (err) {
       console.error("Failed to start/stop simulation", err);
+    }
+  };
+
+  const toggleAutoPilot = async () => {
+    const nextVal = !autoPilot;
+    setAutoPilot(nextVal);
+    
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+    const token = getToken();
+    
+    try {
+      await fetch(`${apiUrl}/api/autopilot?shipment_id=${activeShipmentId}&enabled=${nextVal}`, {
+        method: 'POST',
+        headers: token ? { "Authorization": `Bearer ${token}` } : {}
+      });
+    } catch (err) {
+      console.error("Auto-pilot toggle failed", err);
     }
   };
 
@@ -275,7 +296,7 @@ export default function Dashboard() {
                <LogOut className="w-3 h-3"/> Disconnect
             </button>
             {/* Auto-Pilot Toggle */}
-            <div className="flex items-center gap-3 bg-black/40 px-3 py-1.5 rounded-full border border-white/5" onClick={() => setAutoPilot(!autoPilot)}>
+            <div className="flex items-center gap-3 bg-black/40 px-3 py-1.5 rounded-full border border-white/5" onClick={toggleAutoPilot}>
               <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Auto-Pilot</span>
               <div className={`w-10 h-5 rounded-full cursor-pointer relative px-0.5 flex items-center transition-colors ${autoPilot ? 'bg-emerald-500/40 border border-emerald-400/50 glow-emerald' : 'bg-slate-800 border border-slate-600'}`}>
                  <motion.div layout className={`w-4 h-4 rounded-full ${autoPilot ? 'bg-emerald-400' : 'bg-slate-400'}`} animate={{ x: autoPilot ? 20 : 0 }} />

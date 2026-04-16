@@ -78,7 +78,8 @@ INITIAL_SHIPMENTS = [
         vendor_details={"vendor_name": "Oceanic Freight", "reliability_score": 82, "cost_efficiency": 75, "delay_history_rating": "Moderate"},
         sla_contract={"max_delay_hours": 12, "penalty_per_hour": 50000, "contract_status": "AT RISK"},
         iot_telemetry={"temperature_c": 4.5, "humidity_percent": 88.2, "container_locked": True, "status_alert": "NORMAL"},
-        dependencies=[{"related_shipment_id": "SHP-X9002", "dependency_type": "JIT Factory Assembly", "impact_delay_hours": 24}]
+        dependencies=[{"related_shipment_id": "SHP-X9002", "dependency_type": "JIT Factory Assembly", "impact_delay_hours": 24}],
+        original_route=["Singapore", "Malacca Strait", "Mumbai Port"]
     ),
     ShipmentData(
         id="SHP-X9002", origin="UAE Port", destination="Gujarat Port", current_location="Arabian Sea",
@@ -86,7 +87,8 @@ INITIAL_SHIPMENTS = [
         vendor_details={"vendor_name": "Desert Star", "reliability_score": 90, "cost_efficiency": 85, "delay_history_rating": "Low"},
         sla_contract={"max_delay_hours": 24, "penalty_per_hour": 25000, "contract_status": "NOMINAL"},
         iot_telemetry={"temperature_c": 22.0, "humidity_percent": 45.0, "container_locked": True, "status_alert": "NORMAL"},
-        dependencies=[]
+        dependencies=[],
+        original_route=["UAE Port", "Arabian Sea", "Gujarat Port"]
     ),
     ShipmentData(
         id="SHP-X9003", origin="Singapore", destination="Vishakapatnam Port", current_location="Bay of Bengal",
@@ -94,7 +96,8 @@ INITIAL_SHIPMENTS = [
         vendor_details={"vendor_name": "Eastern Seas", "reliability_score": 88, "cost_efficiency": 80, "delay_history_rating": "Low"},
         sla_contract={"max_delay_hours": 18, "penalty_per_hour": 30000, "contract_status": "NOMINAL"},
         iot_telemetry={"temperature_c": 18.0, "humidity_percent": 75.0, "container_locked": True, "status_alert": "NORMAL"},
-        dependencies=[]
+        dependencies=[],
+        original_route=["Singapore", "Bay of Bengal", "Vishakapatnam Port"]
     ),
     ShipmentData(
         id="SHP-X9004", origin="Shanghai", destination="Mumbai Port", current_location="Malacca Strait",
@@ -102,7 +105,8 @@ INITIAL_SHIPMENTS = [
         vendor_details={"vendor_name": "FarEast", "reliability_score": 79, "cost_efficiency": 90, "delay_history_rating": "High"},
         sla_contract={"max_delay_hours": 48, "penalty_per_hour": 15000, "contract_status": "NOMINAL"},
         iot_telemetry={"temperature_c": 2.5, "humidity_percent": 65.0, "container_locked": True, "status_alert": "NORMAL"},
-        dependencies=[]
+        dependencies=[],
+        original_route=["Shanghai", "Malacca Strait", "Mumbai Port"]
     ),
     ShipmentData(
         id="SHP-X9005", origin="Rotterdam", destination="UAE Port", current_location="Red Sea",
@@ -110,7 +114,8 @@ INITIAL_SHIPMENTS = [
         vendor_details={"vendor_name": "EuroLine", "reliability_score": 95, "cost_efficiency": 60, "delay_history_rating": "Very Low"},
         sla_contract={"max_delay_hours": 6, "penalty_per_hour": 100000, "contract_status": "NOMINAL"},
         iot_telemetry={"temperature_c": 5.0, "humidity_percent": 50.0, "container_locked": True, "status_alert": "NORMAL"},
-        dependencies=[]
+        dependencies=[],
+        original_route=["Rotterdam", "Mediterranean", "Suez Canal", "Red Sea", "UAE Port"]
     ),
     ShipmentData(
         id="SHP-X9006", origin="New York", destination="Gujarat Port", current_location="Mediterranean",
@@ -118,7 +123,8 @@ INITIAL_SHIPMENTS = [
         vendor_details={"vendor_name": "Atlantic Way", "reliability_score": 86, "cost_efficiency": 72, "delay_history_rating": "Moderate"},
         sla_contract={"max_delay_hours": 36, "penalty_per_hour": 20000, "contract_status": "NOMINAL"},
         iot_telemetry={"temperature_c": -12.0, "humidity_percent": 30.0, "container_locked": True, "status_alert": "NORMAL"},
-        dependencies=[]
+        dependencies=[],
+        original_route=["New York", "Mediterranean", "Suez Canal", "Gujarat Port"]
     ),
 ]
 
@@ -203,6 +209,9 @@ async def run_simulation_loop():
             w_ctx = global_contexts[sid]
             curr_ship = w_ctx.shipment
 
+            # Use existing auto_pilot_mode from state
+            current_auto_pilot = w_ctx.auto_pilot_mode
+
             # Fluctuate IoT randomly for the demo
             if curr_ship.iot_telemetry:
                 curr_ship.iot_telemetry.temperature_c += random.uniform(-0.5, 0.5)
@@ -246,15 +255,15 @@ async def run_simulation_loop():
                 weather_data=weather_data,
                 traffic_data=traffic_data,
                 demand_sync=w_ctx.demand_sync,
-                auto_pilot_mode=False
+                auto_pilot_mode=current_auto_pilot
             )
             
             # Run orchestrated agents
             print(f"DEBUG: [simulation] Running pipeline for {sid}")
             global_contexts[sid] = await orchestrator.run_pipeline(ctx)
             
-        # Re-run loop every X seconds for the demo
-        await asyncio.sleep(8)
+        # Re-run loop every X seconds for the demo (Reduced from 8s for real-time feel)
+        await asyncio.sleep(2)
 
 @app.post("/api/start", dependencies=[Depends(get_current_user)])
 @limiter.limit("10/minute")
@@ -394,6 +403,15 @@ async def create_disturbance(
         target_id = req.shipment_id
 
     manual_disturbances[target_id] = req.model_dump()
+
+    # Immediate log broadcast for real-time feel
+    await event_bus.publish(AgentTrace(
+        shipment_id=target_id,
+        agent_name="NEURAL_UPLINK",
+        status="RUNNING",
+        logs=[f"Anomaly Detected: {req.disturbance_type}", f"Severity: {req.severity}", "Initializing emergency agent protocol..."]
+    ))
+
     res = {"status": "success", "message": f"Injected {req.disturbance_type} into {target_id}"}
     
     if idempotency_key:
@@ -401,6 +419,13 @@ async def create_disturbance(
             await save_request_result(db, idempotency_key, "/api/disturb", 200, res, user_id)
             
     return res
+
+@app.post("/api/autopilot", dependencies=[Depends(get_current_user)])
+async def toggle_autopilot(shipment_id: str, enabled: bool):
+    if shipment_id in global_contexts:
+        global_contexts[shipment_id].auto_pilot_mode = enabled
+        return {"status": "success", "mode": "AUTO_PILOT" if enabled else "MANUAL", "shipment_id": shipment_id}
+    return {"status": "error", "message": "Shipment not found"}
 
 @app.delete("/api/disturb/{shipment_id}", dependencies=[Depends(get_current_user)])
 @limiter.limit("10/minute")

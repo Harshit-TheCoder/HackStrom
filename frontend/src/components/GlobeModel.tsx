@@ -105,8 +105,41 @@ function Earth({ state }: { state?: any }) {
       <Node position={[vOrigin.x, vOrigin.y, vOrigin.z]} color="#3b82f6" label="ORIG" />
       <Node position={[vCurr.x, vCurr.y, vCurr.z]} color="#14b8a6" label="CURR" />
 
-      {/* Holographic Connecting Arc */}
-      <ConnectingArc start={vOrigin} end={vDest} current={vCurr} />
+      {/* 1. Original Baseline Route (Muted Blue Arc) */}
+      <ConnectingArc 
+        start={vOrigin} 
+        end={vDest} 
+        color="#3b82f6" 
+        opacity={0.3} 
+        arcHeight={0.3} 
+      />
+
+      {/* 2. Suggested Reroute (Vibrant Teal Segments) */}
+      {state?.decision_result?.alternative_route?.length > 0 && (
+        (() => {
+          const altNodes = state.decision_result.alternative_route;
+          const segments = [];
+          let prevVec = vCurr;
+          
+          altNodes.forEach((nodeName: string, i: number) => {
+            const coord = PRESET_LOCATIONS[nodeName] || [0, 0];
+            const nextVec = latLongToVector3(coord[0], coord[1], 2.0);
+            segments.push(
+              <ConnectingArc 
+                key={`alt-${i}`}
+                start={prevVec} 
+                end={nextVec} 
+                color="#14b8a6" 
+                opacity={0.9} 
+                arcHeight={0.5} 
+                thickness={0.02}
+              />
+            );
+            prevVec = nextVec;
+          });
+          return segments;
+        })()
+      )}
     </group>
   );
 }
@@ -139,7 +172,21 @@ function Node({ position, color, label }: { position: [number, number, number], 
   );
 }
 
-function ConnectingArc({ start, end, current }: { start: THREE.Vector3, end: THREE.Vector3, current?: THREE.Vector3 }) {
+function ConnectingArc({ 
+  start, 
+  end, 
+  color = "#06b6d4", 
+  opacity = 0.8, 
+  arcHeight = 0.4,
+  thickness = 0.015
+}: { 
+  start: THREE.Vector3, 
+  end: THREE.Vector3, 
+  color?: string,
+  opacity?: number,
+  arcHeight?: number,
+  thickness?: number
+}) {
   const { geometry, dashMat } = useMemo(() => {
     const points = [];
     const segments = 50;
@@ -148,23 +195,23 @@ function ConnectingArc({ start, end, current }: { start: THREE.Vector3, end: THR
       const t = i / segments;
       const p = new THREE.Vector3().lerpVectors(start, end, t);
       // Create a nice parabola arc
-      const arcHeight = Math.sin(t * Math.PI) * 0.4;
-      p.normalize().multiplyScalar(2.02 + arcHeight); 
+      const lift = Math.sin(t * Math.PI) * arcHeight;
+      p.normalize().multiplyScalar(2.02 + lift); 
       points.push(p);
     }
     
     const curve = new THREE.CatmullRomCurve3(points);
-    const tubeGeometry = new THREE.TubeGeometry(curve, 64, 0.015, 8, false);
+    const tubeGeometry = new THREE.TubeGeometry(curve, 64, thickness, 8, false);
     
     const dashMat = new THREE.MeshBasicMaterial({
-      color: "#06b6d4",
+      color: color,
       transparent: true,
-      opacity: 0.8,
+      opacity: opacity,
       blending: THREE.AdditiveBlending
     });
     
     return { geometry: tubeGeometry, dashMat };
-  }, [start, end]);
+  }, [start, end, color, opacity, arcHeight, thickness]);
   
   const meshRef = useRef<THREE.Mesh>(null);
   

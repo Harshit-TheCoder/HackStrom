@@ -19,17 +19,41 @@ def _get_fallback_for_schema(schema: Type[T]) -> T:
             "MonitorOutput": {"anomaly_detected": True, "anomaly_type": "Severe Port Congestion", "description": "High volumes at Chennai Port due to storm warnings causing a 3-day backlog."},
             "ETAOutput": {"original_eta": "2026-04-18", "predicted_eta": "2026-04-21", "delay_probability_percent": 95, "reasoning": "Port congestion severely limits offloading capacity."},
             "RiskOutput": {"risk_score": 88, "risk_category": "HIGH", "reason": "3-day delay incurs heavy demurrage fees and impacts downstream manufacturing.", "high_risk_zones": ["Chennai Port", "Ennore"]},
-            "DecisionOutput": {"options": [{"action": "Reroute to Ennore Port", "pros": ["Faster offloading"], "cons": ["Extra trucking cost"], "confidence_score": 0.85, "financials": {"delay_cost": 150000, "rerouting_cost": 30000, "penalty_avoided": 120000, "net_savings": 120000}}], "recommended_action": "Reroute to Ennore Port", "auto_pilot_executed": True},
+            "DecisionOutput": {
+                "options": [{
+                    "action": "Reroute to Ennore Port", 
+                    "pros": ["Faster offloading"], 
+                    "cons": ["Extra trucking cost"], 
+                    "confidence_score": 0.85, 
+                    "financials": {"delay_cost": 150000, "rerouting_cost": 30000, "penalty_avoided": 120000, "net_savings": 120000}
+                }], 
+                "recommended_action": "Reroute to Ennore Port", 
+                "auto_pilot_executed": True,
+                "alternative_route": ["Indian Ocean", "Vishakapatnam Port", "Chennai"],
+                "policy_impact": "Compliance with Indian Maritime Safety Directive 2026-A: Mandatory storm detour protocols."
+            },
             "SimulationOutput": {"selected_option_validated": "Reroute to Ennore Port", "time_impact": "Saves 2 days", "cost_impact": "Adds $2000 in transit", "reliability_score": 85, "comparison_summary": "Rerouting saves ₹1.2L vs delay penalty.", "self_learning_feedback": "Vendor Ennore Logistics updated: +5 Reliability."},
             "PolicyOutput": {"approved": True, "budget_constraint_met": True, "notes": "Approved under emergency routing policy exception."},
-            "ReportOutput": {"summary": "Shipment delayed at Chennai. Rerouted to Ennore.", "actions_taken": ["Instructed carrier to divert"], "explanation": "Mitigated port congestion using fallback routing.", "blockchain_audit_hash": "0x4b7f9a831e5d22bcf45a1"}
+            "ReportOutput": {"summary": "Shipment delayed at Chennai. Rerouted to Ennore.", "actions_taken": ["Instructed carrier to divert"], "explanation": "Mitigated port congestion using fallback routing. Validated by Port Authority of India.", "blockchain_audit_hash": "0x4b7f9a831e5d22bcf45a1"}
         },
         # Scenario 2: Customs Regulatory Hold
         {
             "MonitorOutput": {"anomaly_detected": True, "anomaly_type": "Customs Documentation Hold", "description": "Bill of Lading discrepancies flagged by customs AI scanner. Container frozen."},
             "ETAOutput": {"original_eta": "2026-04-18", "predicted_eta": "2026-04-23", "delay_probability_percent": 100, "reasoning": "Standard regulatory clearing takes 5 business days without intervention."},
             "RiskOutput": {"risk_score": 92, "risk_category": "HIGH", "reason": "Perishable goods inside. A 5-day hold risks complete cargo spoilage.", "high_risk_zones": ["Customs Terminal B"]},
-            "DecisionOutput": {"options": [{"action": "Engage Premium Broker", "pros": ["Clears in 24h"], "cons": ["High expedition fee"], "confidence_score": 0.90, "financials": {"delay_cost": 250000, "rerouting_cost": 50000, "penalty_avoided": 200000, "net_savings": 200000}}], "recommended_action": "Engage Premium Broker", "auto_pilot_executed": False},
+            "DecisionOutput": {
+                "options": [{
+                    "action": "Engage Premium Broker", 
+                    "pros": ["Clears in 24h"], 
+                    "cons": ["High expedition fee"], 
+                    "confidence_score": 0.90, 
+                    "financials": {"delay_cost": 250000, "rerouting_cost": 50000, "penalty_avoided": 200000, "net_savings": 200000}
+                }], 
+                "recommended_action": "Engage Premium Broker", 
+                "auto_pilot_executed": False,
+                "alternative_route": ["Customs Terminal B", "Global Hub", "Mumbai Port"],
+                "policy_impact": "Aligned with Global Trade Facilitation Agreement Article 7: Fast-track clearing for high-value time-sensitive medical/perishable assets."
+            },
             "SimulationOutput": {"selected_option_validated": "Engage Premium Broker", "time_impact": "Reduces delay to 1 day", "cost_impact": "$1500 expedition fee", "reliability_score": 90, "comparison_summary": "Saves perishable cargo worth $50,000 for a minor fee.", "self_learning_feedback": "Broker ML model weight adjusted: +0.02"},
             "PolicyOutput": {"approved": True, "budget_constraint_met": True, "notes": "Approved automatically due to high cargo value preservation rules."},
             "ReportOutput": {"summary": "Customs hold detected. Premium broker engaged.", "actions_taken": ["Dispatched fast-track broker"], "explanation": "Acted immediately to prevent spoilage of sensitive cargo.", "blockchain_audit_hash": "0x98fde2a1bc3649dd"}
@@ -39,7 +63,18 @@ def _get_fallback_for_schema(schema: Type[T]) -> T:
             "MonitorOutput": {"anomaly_detected": True, "anomaly_type": "Category 3 Cyclone", "description": "Cyclone approaching the eastern coast. Maritime authority orders ships to anchor offshore."},
             "ETAOutput": {"original_eta": "2026-04-18", "predicted_eta": "2026-04-22", "delay_probability_percent": 85, "reasoning": "Vessels must drift until the storm passes before docking operations resume."},
             "RiskOutput": {"risk_score": 75, "risk_category": "MEDIUM", "reason": "Routine weather delay. Schedule impact is moderate, material risk is low.", "high_risk_zones": ["Bay of Bengal South"]},
-            "DecisionOutput": {"options": [{"action": "Drift offshore", "pros": ["Safest maneuver"], "cons": ["4-day delay"], "confidence_score": 0.95, "financials": {"delay_cost": 0, "rerouting_cost": 0, "penalty_avoided": 0, "net_savings": 0}}], "recommended_action": "Drift offshore", "auto_pilot_executed": True},
+            "DecisionOutput": {
+                "options": [{
+                    "action": "Drift offshore", 
+                    "pros": ["Safest maneuver"], 
+                    "cons": ["4-day delay"], 
+                    "confidence_score": 0.95, 
+                    "financials": {"delay_cost": 0, "rerouting_cost": 0, "penalty_avoided": 0, "net_savings": 0}
+                }], 
+                "recommended_action": "Drift offshore", 
+                "auto_pilot_executed": True,
+                "alternative_route": ["Bay of Bengal South", "Arabian Sea", "Mumbai Port"]
+            },
             "SimulationOutput": {"selected_option_validated": "Drift offshore", "time_impact": "Adds 4 days", "cost_impact": "Negligible fuel cost", "reliability_score": 99, "comparison_summary": "Safety protocol dictates drifting. Rerouting is highly dangerous.", "self_learning_feedback": "Weather matrix correlation updated"},
             "PolicyOutput": {"approved": True, "budget_constraint_met": True, "notes": "Aligned with mandatory maritime safety constraints."},
             "ReportOutput": {"summary": "Shipment anchored offshore due to cyclone.", "actions_taken": ["Ordered vessel to holding pattern"], "explanation": "Ensured vessel safety under maritime extreme weather SOP.", "blockchain_audit_hash": "0xff10294ab18239091c"}

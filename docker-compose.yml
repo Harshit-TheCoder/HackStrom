@@ -15,6 +15,7 @@ services:
       db:
         condition: service_healthy
     volumes:
+      - .:/app
       - backend_data:/app/data
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health').read()"]
@@ -69,8 +70,13 @@ services:
     container_name: nexus_frontend
     ports:
       - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
     environment:
       - NEXT_PUBLIC_API_URL=http://localhost:8000
+      - WATCHPACK_POLLING=true
     depends_on:
       backend:
         condition: service_healthy

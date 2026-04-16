@@ -35,6 +35,7 @@ class ShipmentData(BaseModel):
     sla_contract: Optional[SLAContract] = None
     iot_telemetry: Optional[IoTData] = None
     dependencies: List[MultiShipmentDependency] = []
+    original_route: List[str] = []  # List of location names for the baseline path
 
 class TrafficCongestionOutput(BaseModel):
     route_status: str = "Clear"
@@ -75,6 +76,7 @@ class DecisionOutput(BaseModel):
     options: List[DecisionOption] = Field(description="List of proposed options.")
     recommended_action: str = Field(description="The best option selected.")
     auto_pilot_executed: bool = Field(default=False)
+    alternative_route: List[str] = Field(default=[], description="List of location names for the suggested detour.")
 
 class SimulationOutput(BaseModel):
     selected_option_validated: str = Field(description="The simulated option.")

@@ -63,7 +63,19 @@ export default function MapComponent({ state }: { state: any }) {
     return PRESET_LOCATIONS[state?.shipment?.current_location] || PRESET_LOCATIONS["Chennai"];
   }, [state]);
 
-  const routePositions = [originCoord, currentCoord, destCoord];
+  // Original Baseline Route
+  const originalPoints = useMemo(() => {
+    const route = state?.shipment?.original_route || [];
+    if (route.length === 0) return [originCoord, currentCoord, destCoord];
+    return route.map((node: string) => PRESET_LOCATIONS[node] || PRESET_LOCATIONS["Global Hub"]);
+  }, [state, originCoord, currentCoord, destCoord]);
+
+  // Suggested Alternative Route
+  const alternativePoints = useMemo(() => {
+    const route = state?.decision_result?.alternative_route || [];
+    if (route.length === 0) return null;
+    return [currentCoord, ...route.map((node: string) => PRESET_LOCATIONS[node] || PRESET_LOCATIONS["Global Hub"])];
+  }, [state, currentCoord]);
 
   // Derive risk zone styles
   const isHighRisk = state?.risk_result?.risk_category === "HIGH";
@@ -81,7 +93,21 @@ export default function MapComponent({ state }: { state: any }) {
         url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
       />
 
-      <Polyline positions={routePositions} color="#0ea5e9" weight={2} dashArray="5, 10" />
+      {/* Original Planned Route */}
+      <Polyline positions={originalPoints} color="#3b82f6" weight={2} dashArray="10, 10" opacity={0.4} />
+
+      {/* Suggested Reroute */}
+      {alternativePoints && (
+        <Polyline 
+          positions={alternativePoints} 
+          pathOptions={{
+            color: "#14b8a6",
+            weight: 4,
+            opacity: 1,
+            className: "reroute-neon-pulse"
+          }}
+        />
+      )}
 
       {/* Origin Node */}
       <Marker position={originCoord} icon={originIcon}>
