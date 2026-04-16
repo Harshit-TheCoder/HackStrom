@@ -82,6 +82,10 @@
 
 ---
 
+## Dashboard Screenshot
+![Dashboard Screenshot](./image.png)
+
+---
 ## ✨ Feature Highlights
 
 ### 🌍 Holographic 3D Globe
