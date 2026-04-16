@@ -82,13 +82,21 @@
 
 ---
 
-## Dashboard Screenshot
+## Dashboard Screenshot 1
 ![Dashboard Screenshot](./image1.png)
+## Dashboard Screenshot 2
 ![Dashboard Screenshot](./image2.png)
+## Dashboard Screenshot 3
 ![Dashboard Screenshot](./image3.png)
+## Postgres Screenshot
 ![Postgres Screenshot](./image4.png)
+## Grafana Screenshot
 ![Grafana Screenshot](./image5.png)
 ---
+
+## Architecture Diagram
+![Architecture Diagram](./image.png)
+
 ## ✨ Feature Highlights
 
 ### 🌍 Holographic 3D Globe
