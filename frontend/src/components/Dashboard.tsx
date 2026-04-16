@@ -16,6 +16,7 @@ type Role = "OPS" | "LOGISTICS" | "FINANCE";
 
 export default function Dashboard() {
   const router = useRouter();
+  const [activeShipmentId, setActiveShipmentId] = useState("SHP-X9001");
   const [state, setState] = useState<any>(null);
   const [logs, setLogs] = useState<any[]>([]);
   const [isRunning, setIsRunning] = useState(false);
@@ -33,7 +34,7 @@ export default function Dashboard() {
     const fetchState = async () => {
       try {
         const host = window.location.hostname === 'localhost' ? '127.0.0.1' : window.location.hostname;
-        const res = await fetch(`http://${host}:8000/api/state`);
+        const res = await fetch(`http://${host}:8000/api/state?shipment_id=${activeShipmentId}`);
         const data = await res.json();
         if (data && data.status !== "idle") {
           setState(data);
@@ -45,7 +46,7 @@ export default function Dashboard() {
 
     const interval = setInterval(fetchState, 3000);
     return () => clearInterval(interval);
-  }, []);
+  }, [activeShipmentId]);
 
   // Handle WebSockets for live agent streaming
   useEffect(() => {
@@ -184,7 +185,7 @@ export default function Dashboard() {
         <motion.div 
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="flex flex-col xl:flex-row xl:items-center justify-between gap-6 glass-panel border-b-2 border-b-cyan-500/30 w-full"
+          className="flex flex-col 2xl:flex-row flex-wrap items-center justify-between gap-6 glass-panel border-b-2 border-b-cyan-500/30 w-full"
         >
           <div className="flex items-center gap-4">
              <div className="bg-black/50 p-2 rounded-xl border border-white/10">
@@ -204,25 +205,40 @@ export default function Dashboard() {
              </div>
           </div>
 
-          {/* Role Tabs */}
-          <div className="flex bg-black/60 p-1 rounded-full border border-slate-700 w-fit shrink-0">
-             {(["OPS", "LOGISTICS", "FINANCE"] as Role[]).map(r => (
-               <button 
-                 key={r}
-                 onClick={() => setRole(r)}
-                 className={`px-4 py-1.5 rounded-full text-xs font-bold tracking-widest transition-all ${role === r ? 'bg-indigo-500/30 text-indigo-300 border border-indigo-500/50' : 'text-slate-500 hover:text-slate-300'}`}
-               >
-                 {r}
-               </button>
-             ))}
-             <Link href="/history">
-                <button className={`px-4 py-1.5 rounded-full text-xs font-bold tracking-widest transition-all text-slate-500 hover:text-cyan-300 hover:bg-cyan-900/20`}>
-                   FLEET LOGS
-                </button>
-             </Link>
+          {/* Role Tabs & Route Selector */}
+          <div className="flex flex-col md:flex-row items-center gap-4 overflow-x-auto pb-2 xl:pb-0 shrink-0 w-full xl:w-auto">
+             <div className="flex bg-black/60 p-1 rounded-full border border-slate-700 shrink-0">
+               {(["OPS", "LOGISTICS", "FINANCE"] as Role[]).map(r => (
+                 <button 
+                   key={r}
+                   onClick={() => setRole(r)}
+                   className={`px-4 py-1.5 rounded-full text-xs font-bold tracking-widest transition-all ${role === r ? 'bg-indigo-500/30 text-indigo-300 border border-indigo-500/50' : 'text-slate-500 hover:text-slate-300'}`}
+                 >
+                   {r}
+                 </button>
+               ))}
+               <Link href="/history">
+                  <button className={`px-4 py-1.5 rounded-full text-xs font-bold tracking-widest transition-all text-slate-500 hover:text-cyan-300 hover:bg-cyan-900/20`}>
+                     FLEET LOGS
+                  </button>
+               </Link>
+             </div>
+
+             <select 
+               value={activeShipmentId} 
+               onChange={(e) => { setActiveShipmentId(e.target.value); setState(null); setLogs([]); }}
+               className="bg-black/80 border border-cyan-900/60 shadow-lg text-cyan-300 text-[10px] sm:text-xs font-bold tracking-widest px-4 py-2 rounded-full outline-none hover:border-cyan-500/80 transition-all cursor-pointer w-full md:w-[280px]"
+             >
+               <option value="SHP-X9001">SHP-X9001: Singapore ➔ Mumbai</option>
+               <option value="SHP-X9002">SHP-X9002: UAE ➔ Gujarat</option>
+               <option value="SHP-X9003">SHP-X9003: Singapore ➔ Vizag</option>
+               <option value="SHP-X9004">SHP-X9004: Shanghai ➔ Mumbai</option>
+               <option value="SHP-X9005">SHP-X9005: Rotterdam ➔ UAE</option>
+               <option value="SHP-X9006">SHP-X9006: New York ➔ Gujarat</option>
+             </select>
           </div>
           
-          <div className="flex items-center gap-4 shrink-0">
+          <div className="flex flex-wrap items-center justify-center gap-4 shrink-0 w-full xl:w-auto pt-2 xl:pt-0 border-t xl:border-none border-white/10">
             <button onClick={handleLogout} className="flex items-center gap-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 px-4 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-widest transition-colors">
                <LogOut className="w-3 h-3"/> Disconnect
             </button>

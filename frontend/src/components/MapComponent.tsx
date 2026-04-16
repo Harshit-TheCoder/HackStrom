@@ -32,8 +32,20 @@ const vehicleIcon = createCustomIcon('#14b8a6'); // teal
 const PRESET_LOCATIONS: Record<string, [number, number]> = {
     "Singapore": [1.3521, 103.8198],
     "Mumbai": [19.0760, 72.8777],
+    "Mumbai Port": [18.9400, 72.8300],
     "Approaching Chennai Port": [13.0827, 80.2707],
-    "Chennai": [13.0827, 80.2707]
+    "Chennai": [13.0827, 80.2707],
+    "UAE Port": [25.2769, 55.2962],
+    "Gujarat Port": [22.7300, 69.7300],
+    "Vishakapatnam Port": [17.6800, 83.2100],
+    "Shanghai": [31.2304, 121.4737],
+    "Rotterdam": [51.9244, 4.4777],
+    "New York": [40.7128, -74.0060],
+    "Arabian Sea": [15.0, 65.0],
+    "Bay of Bengal": [15.0, 88.0],
+    "Malacca Strait": [4.0, 100.0],
+    "Red Sea": [20.0, 38.0],
+    "Mediterranean": [35.0, 18.0]
 };
 
 export default function MapComponent({ state }: { state: any }) {

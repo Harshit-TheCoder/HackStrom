@@ -18,38 +18,43 @@ export default function HistoryPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [fleetLogs, setFleetLogs] = useState(HISTORICAL_SHIPS);
 
-  // Dynamically pull latest state for SHP-X9001 from AI pipeline
+  // Dynamically pull latest state for all active pipelines
   useEffect(() => {
     const fetchState = async () => {
       try {
         const host = window.location.hostname === 'localhost' ? '127.0.0.1' : window.location.hostname;
-        const res = await fetch(`http://${host}:8000/api/state`);
-        const data = await res.json();
+        const res = await fetch(`http://${host}:8000/api/states`);
+        const statesData = await res.json();
         
-        if (data && data.status !== "idle" && data.shipment) {
-           const isHighRisk = data.risk_result?.risk_category === "HIGH";
-           const isDelayed = data.eta_result && (data.eta_result.predicted_eta > data.eta_result.original_eta);
-           
-           const liveStatus = isHighRisk ? 'AT RISK' : (isDelayed ? 'DELAYED' : 'ON TIME');
-           const riskLevel = data.risk_result?.risk_category || 'NOMINAL';
-           
-           let logContext = data.monitor_result?.description || 'Active AI tracking mapping...';
-           if (data.decision_result?.options?.length > 0) {
-               logContext = `AI Intervened: Option [${data.decision_result.options[0].action}] selected. ${data.risk_result?.reason || ''}`;
-           }
-
+        if (statesData) {
            setFleetLogs(prev => {
               const newLogs = [...prev];
-              // Target SHP-X9001 representing our live simulation
-              const idx = newLogs.findIndex(s => s.id === data.shipment.id);
-              if (idx !== -1) {
-                  newLogs[idx] = {
-                      ...newLogs[idx],
-                      status: liveStatus,
-                      risk_level: riskLevel,
-                      logs: `${logContext} [Loc: ${data.shipment.current_location}]`,
-                      time: "LIVE",
-                  };
+              
+              for (const shipId in statesData) {
+                  const data = statesData[shipId];
+                  if (!data || data.status === "idle" || !data.shipment) continue;
+
+                  const isHighRisk = data.risk_result?.risk_category === "HIGH";
+                  const isDelayed = data.eta_result && (data.eta_result.predicted_eta > data.eta_result.original_eta);
+                  
+                  const liveStatus = isHighRisk ? 'AT RISK' : (isDelayed ? 'DELAYED' : 'ON TIME');
+                  const riskLevel = data.risk_result?.risk_category || 'NOMINAL';
+                  
+                  let logContext = data.monitor_result?.description || 'Active AI tracking mapping...';
+                  if (data.decision_result?.options?.length > 0) {
+                      logContext = `AI Intervened: Option [${data.decision_result.options[0].action}] selected. ${data.risk_result?.reason || ''}`;
+                  }
+
+                  const idx = newLogs.findIndex(s => s.id === data.shipment.id);
+                  if (idx !== -1) {
+                      newLogs[idx] = {
+                          ...newLogs[idx],
+                          status: liveStatus,
+                          risk_level: riskLevel,
+                          logs: `${logContext} [Loc: ${data.shipment.current_location}]`,
+                          time: "LIVE",
+                      };
+                  }
               }
               return newLogs;
            });
