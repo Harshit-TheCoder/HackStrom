@@ -21,13 +21,19 @@ from app.core.events import event_bus
 from app.core.dependencies import get_current_user
 from fastapi import Depends
 
+from app.core.telemetry import setup_telemetry
+from prometheus_client import make_asgi_app
+
 limiter = Limiter(key_func=get_remote_address)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Initialize DB on startup
+    # 1. Initialize Telemetry (Loki/Tempo/Prometheus)
+    setup_telemetry(app)
+    
+    # 2. Initialize DB on startup
     await init_db()
-    # Initialize Vector Memory (ChromaDB)
+    # 3. Initialize Vector Memory (ChromaDB)
     await vector_memory.initialize()
     # Start EventBus logic
     await event_bus.start()
@@ -56,6 +62,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# 📈 Mount Metrics Endpoint
+app.mount("/metrics", make_asgi_app())
 
 # Global State
 global_contexts = {}
