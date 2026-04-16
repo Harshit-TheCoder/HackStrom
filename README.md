@@ -83,8 +83,11 @@
 ---
 
 ## Dashboard Screenshot
-![Dashboard Screenshot](./image.png)
-
+![Dashboard Screenshot](./image1.png)
+![Dashboard Screenshot](./image2.png)
+![Dashboard Screenshot](./image3.png)
+![Postgres Screenshot](./image4.png)
+![Grafana Screenshot](./image5.png)
 ---
 ## ✨ Feature Highlights
 
