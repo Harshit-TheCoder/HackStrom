@@ -11,8 +11,10 @@ class MonitorAgent:
         Weather at location: {json.dumps(context.weather_data)}
         
         Task: Detect any anomalies (delay, stuck, unusual weather patterns). 
-        FOR THIS HACKATHON DEMO: You MUST ALWAYS set `anomaly_detected` to true. 
-        Invent a "Severe Port Congestion" anomaly affecting the location, and combine it with the weather data provided to explain the delay.
+        IMPORTANT: If the weather or data contains the tag "(MANUALLY CREATED)", you MUST include that EXACT tag in your `anomaly_type` and starting of your `description`.
+        
+        Analyze the provided data objectively. If weather conditions are clear and there are no traffic delays, set `anomaly_detected` to false and `anomaly_type` to "Normal". 
+        Only detect anomalies if there are visible disruptions in the provided telemetry, weather, or traffic data.
         Output ONLY structured JSON.
         """
         return await gemini_client.generate_structured(prompt, MonitorOutput)

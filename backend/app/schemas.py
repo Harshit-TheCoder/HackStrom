@@ -120,3 +120,13 @@ class ControlTowerContext(BaseModel):
     report_result: Optional[ReportOutput] = None
     demand_sync: Optional[DemandSyncOutput] = None
     auto_pilot_mode: bool = False
+
+class DisturbanceRequest(BaseModel):
+    shipment_id: str
+    disturbance_type: str  # e.g., "Cyclone", "Port Strike", "Heavy Flood"
+    severity: str        # e.g., "Critical", "Moderate"
+    description: str
+
+class DisturbanceResponse(BaseModel):
+    status: str
+    message: str

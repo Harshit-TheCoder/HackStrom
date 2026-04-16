@@ -32,7 +32,11 @@ const PRESET_LOCATIONS: Record<string, [number, number]> = {
     "Bay of Bengal": [15.0, 88.0],
     "Malacca Strait": [4.0, 100.0],
     "Red Sea": [20.0, 38.0],
-    "Mediterranean": [35.0, 18.0]
+    "Mediterranean": [35.0, 18.0],
+    "Suez Canal": [29.97, 32.55],
+    "Panama Canal": [9.08, -79.68],
+    "Global Hub": [0, 0],
+    "Crisis Zone": [10, 10]
 };
 
 function Earth({ state }: { state?: any }) {

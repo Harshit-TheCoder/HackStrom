@@ -9,7 +9,8 @@ import LocationWeatherMap from "./LocationWeatherMap";
 import ReasoningStream from "./ReasoningStream";
 import ActionCards from "./ActionCards";
 import GlobeModel from "./GlobeModel";
-import { Play, Square, Bot, Shield, BrainCircuit, Activity, MessageSquare, Send, X, ShieldAlert, LogOut } from "lucide-react";
+import ChaosControl from "./ChaosControl";
+import { Play, Square, Bot, Shield, BrainCircuit, Activity, MessageSquare, Send, X, ShieldAlert, LogOut, Flame } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 type Role = "OPS" | "LOGISTICS" | "FINANCE";
@@ -38,6 +39,7 @@ export default function Dashboard() {
   const [chatHistory, setChatHistory] = useState([
     { sender: "nexus", text: "Nexus NLP initialized. Ask me anything about the current supply chain state." }
   ]);
+  const [chaosOpen, setChaosOpen] = useState(false);
   const ws = useRef<WebSocket | null>(null);
 
   // Poll state endpoint
@@ -86,6 +88,9 @@ export default function Dashboard() {
     };
   }, []);
 
+  const [chaosDisturbances, setChaosDisturbances] = useState<any[]>([]);
+
+  // Simulation controls
   const toggleSimulation = async () => {
     const endpoint = isRunning ? "/api/stop" : "/api/start";
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -105,64 +110,37 @@ export default function Dashboard() {
      router.push("/login");
   };
 
-  const submitChat = (e?: React.FormEvent, overrideText?: string) => {
+  const submitChat = (e?: React.FormEvent, manualQuery?: string) => {
     if (e) e.preventDefault();
-    const textToSubmit = overrideText || chatQuery;
-    if (!textToSubmit.trim()) return;
-    
-    setChatHistory(prev => [...prev, { sender: "user", text: textToSubmit }]);
-    
-    const query = textToSubmit.toLowerCase();
-    let responseText = "Analyzing query semantics... Based on the latest matrix, our AI agents have simulated options to mitigate active risks.";
-    
-    // Intelligent keyword-based dynamic responses
-    if (query.match(/hi|hello|hey/)) {
-       responseText = "Hello! I am Nexus Operations AI. How can I assist you with your supply chain logistics today?";
-    } else if (query.includes("cost") || query.includes("financial") || query.includes("money")) {
-       const money = state?.decision_result?.options?.[0]?.financials;
-       if (money) {
-           responseText = `Financial Simulator indicates a delay penalty of ₹${money.delay_cost.toLocaleString()}. By enacting our optimal vector, we avoid the penalty minus a ₹${money.rerouting_cost.toLocaleString()} action cost, netting ₹${money.net_savings.toLocaleString()} in savings.`;
-       } else {
-           responseText = "Financials are stable. No current delay penalties mapped.";
-       }
-    } else if (query.includes("delay") || query.includes("eta") || query.includes("time") || query.includes("late")) {
-       if (state?.eta_result) {
-           responseText = `Shipment ${state.shipment?.id} was originally due ${state.eta_result.original_eta}. We predict a revised ETA of ${state.eta_result.predicted_eta} (${state.eta_result.delay_probability_percent}% probability) due to ${state.monitor_result?.anomaly_type || 'unforeseen disruptions'}.`;
-       } else {
-           responseText = "All shipments are currently mapping to their original ETAs. No delays detected on-chain.";
-       }
-    } else if (query.includes("risk") || query.includes("danger") || query.includes("weather")) {
-       if (state?.risk_result) {
-           responseText = `System indicates a ${state.risk_result.risk_category} threat level (Score: ${state.risk_result.risk_score}). Reason: ${state.risk_result.reason}.`;
-       } else {
-           responseText = "Threat vectors are currently low across the designated route.";
-       }
-    } else if (query.includes("vendor") || query.includes("score") || query.includes("supplier")) {
-       if (state?.shipment?.vendor_details) {
-           const v = state.shipment.vendor_details;
-           responseText = `${v.vendor_name} currently holds an ML reliability score of ${v.reliability_score}/100. Their delay history is mapped as ${v.delay_history_rating}.`;
-       } else {
-           responseText = "Vendor metrics are mapping nominally. No active SLA breaches recorded.";
-       }
-    } else if (query.includes("more") || query.includes("info") || query.includes("detail") || query.includes("explain") || query.includes("about")) {
-       if (state?.report_result) {
-           responseText = `Detailed Analysis: ${state.report_result.explanation} The AI resolution was evaluated by the policy engine and is designated as: ${state.policy_result?.approved ? 'POLICY VALIDATED' : 'MANUAL APPROVAL REQUIRED'}.`;
-       } else if (state?.monitor_result) {
-           responseText = `Current situation context: ${state.monitor_result.description}. We are monitoring the vector.`;
-       } else {
-           responseText = "Our agent swarm is continuously analyzing real-time data from 400+ endpoints. No further anomalies are actively flagged.";
-       }
-    }
+    const query = manualQuery || chatQuery;
+    if (!query) return;
 
+    setChatHistory(prev => [...prev, { sender: "user", text: query }]);
     setChatQuery("");
-    
+
+    // Simulate AI thinking and response
     setTimeout(() => {
-       setChatHistory(prev => [...prev, { 
-         sender: "nexus", 
-         text: responseText 
-       }]);
-    }, 600 + Math.random() * 500); // 600 - 1100ms fake thinking delay
-  }
+      let response = "Analyzing Nexus telemetry... ";
+      const q = query.toLowerCase();
+      
+      if (q.includes("delay")) {
+          response += state?.eta_result?.reasoning || "Current ETA is stable, but monitoring Malacca Strait congestion.";
+      } else if (q.includes("financial") || q.includes("cost")) {
+          response += `Current projected delay cost is $${state?.decision_result?.options[0]?.financials?.delay_cost || '0'}. Rerouting could save up to $${state?.decision_result?.options[0]?.financials?.penalty_avoided || '15,000'}.`;
+      } else if (q.includes("vendor") || q.includes("reliability")) {
+          response += `${state?.shipment.vendor} has a reliability score of ${state?.shipment.vendor_details?.reliability_score}%. They are currently performing within SLA.`;
+      } else if (q.includes("risk")) {
+          response += state?.risk_result?.reason || "Minimal environmental risk detected at current coordinates.";
+      } else {
+          response += "I've processed your query. The autonomous control tower is maintaining optimal route efficiency.";
+      }
+
+      setChatHistory(prev => [...prev, { sender: "nexus", text: response }]);
+    }, 800);
+  };
+
+
+  // ... (Nominal Dashboard return remains below)
 
   // Real-time Risk Alerts derived from logs
   const latestAlerts = logs.filter(l => l.agent_name === "RISK_AGENT" || l.agent_name === "SLA_MONITOR").slice(-3);
@@ -271,6 +249,14 @@ export default function Dashboard() {
                  <motion.div layout className={`w-4 h-4 rounded-full ${autoPilot ? 'bg-emerald-400' : 'bg-slate-400'}`} animate={{ x: autoPilot ? 20 : 0 }} />
               </div>
             </div>
+            
+            <Link href="/chaos">
+              <button 
+                 className="flex items-center gap-2 px-4 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-widest transition-all bg-slate-900/50 text-slate-500 border border-white/5 hover:text-orange-400 hover:bg-orange-950/20 shadow-[0_0_15px_rgba(249,115,22,0.1)] hover:shadow-[0_0_25px_rgba(249,115,22,0.3)]"
+              >
+                 <Flame className="w-3 h-3 group-hover:animate-pulse" /> Launch Chaos Mode
+              </button>
+            </Link>
 
             <motion.button
               whileHover={{ scale: 1.05 }}
@@ -407,7 +393,41 @@ export default function Dashboard() {
              </motion.button>
            )}
          </AnimatePresence>
-      </div>
+       </div>
+
+       {/* Chaos Control Side Panel */}
+       <AnimatePresence>
+         {chaosOpen && (
+           <>
+              <motion.div 
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                onClick={() => setChaosOpen(false)}
+                className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[55] pointer-events-auto"
+              />
+              <motion.div 
+                initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }}
+                transition={{ type: "spring", damping: 25, stiffness: 200 }}
+                className="fixed top-0 right-0 h-full w-[400px] z-[60] shadow-2xl pointer-events-auto"
+              >
+                 <ChaosControl 
+                    mode="nominal"
+                   activeShipmentId={activeShipmentId} 
+                   onShipmentChange={(id) => {
+                     setActiveShipmentId(id);
+                     activeTrackerRef.current = id;
+                     localStorage.setItem("activeShipmentId", id);
+                   }} 
+                 />
+                 <button 
+                   onClick={() => setChaosOpen(false)}
+                   className="absolute top-6 right-6 p-2 bg-black/40 hover:bg-black/60 rounded-full text-slate-400 hover:text-white transition-colors"
+                 >
+                   <X className="w-5 h-5" />
+                 </button>
+              </motion.div>
+           </>
+         )}
+       </AnimatePresence>
 
     </div>
   );
