@@ -1,12 +1,15 @@
 "use client";
 
-import React, { useRef, useMemo } from "react";
-import { Canvas, useFrame } from "@react-three/fiber";
+import React, { useRef, useMemo, Suspense } from "react";
+import { Canvas, useFrame, useLoader } from "@react-three/fiber";
 import { OrbitControls, Stars, Sphere } from "@react-three/drei";
 import * as THREE from "three";
 
 function Earth() {
   const earthRef = useRef<THREE.Group>(null);
+  
+  // Load high-res clear earth texture showing continents (daylight texture for maximum visibility)
+  const colorMap = useLoader(THREE.TextureLoader, 'https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/planets/earth_atmos_2048.jpg');
 
   // Rotate earth slowly
   useFrame(() => {
@@ -17,23 +20,23 @@ function Earth() {
 
   return (
     <group ref={earthRef}>
-      {/* Core Planet */}
+      {/* Core Planet with Continents & Oceans */}
       <Sphere args={[2, 64, 64]}>
         <meshStandardMaterial 
-          color="#020617" 
-          roughness={0.6} 
-          metalness={0.8} 
-          emissive="#060b19"
+          map={colorMap}
+          roughness={0.7} 
+          metalness={0.1}
+          emissive="#111111"
         />
       </Sphere>
 
-      {/* Digital Grid / Wireframe overlay */}
-      <Sphere args={[2.02, 32, 32]}>
+      {/* Explicit Latitudes & Longitudes Grid */}
+      <Sphere args={[2.02, 36, 18]}>
         <meshBasicMaterial 
           color="#06b6d4" 
           wireframe 
           transparent 
-          opacity={0.15}
+          opacity={0.35}
           blending={THREE.AdditiveBlending}
         />
       </Sphere>
@@ -140,7 +143,9 @@ export default function GlobeModel() {
         <directionalLight position={[-5, -3, -5]} intensity={2} color="#14b8a6" />
         <pointLight position={[0, 0, 0]} intensity={1} color="#06b6d4" distance={5} />
         <Stars radius={100} depth={50} count={5000} factor={4} saturation={1} fade speed={1.5} />
-        <Earth />
+        <Suspense fallback={null}>
+           <Earth />
+        </Suspense>
         <OrbitControls 
           enableZoom={false} 
           enablePan={false} 

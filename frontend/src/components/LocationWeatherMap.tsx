@@ -20,12 +20,21 @@ export default function LocationWeatherMap({ state }: { state: any }) {
 
   // Provide some fake coordinates for the "high risk zones" near the actual marker to draw heatmaps.
   const riskZones = useMemo(() => {
-     if (!riskData?.high_risk_zones || !markerPosition) return [];
-     return riskData.high_risk_zones.map((zone: string, idx: number) => {
-        // Just offset the zone slightly from the actual marker for visual danger areas
+     if (!riskData || !markerPosition) return [];
+     if (riskData.risk_category === "LOW" || riskData.risk_category === "NOMINAL") return [];
+     
+     let zones = riskData.high_risk_zones || [];
+     
+     if (zones.length === 0) {
+        // If backend schema doesn't include it, auto-generate danger zones based on severe risk
+        zones = ["Congestion Cell", "Storm Front"];
+     }
+
+     return zones.map((zone: string, idx: number) => {
+        // Offset the zone slightly from the actual marker for visual danger areas
         return {
            name: zone,
-           coord: [markerPosition[0] + (idx * 0.5 - 0.25), markerPosition[1] + (idx * 0.5 - 0.25)] as [number, number]
+           coord: [markerPosition[0] + (idx === 0 ? 0.3 : -0.4), markerPosition[1] + (idx === 0 ? -0.3 : 0.5)] as [number, number]
         };
      });
   }, [riskData, markerPosition]);
