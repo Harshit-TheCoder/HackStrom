@@ -79,24 +79,74 @@ export default function Dashboard() {
     }
   };
 
-  const submitChat = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!chatQuery.trim()) return;
+  const submitChat = (e?: React.FormEvent, overrideText?: string) => {
+    if (e) e.preventDefault();
+    const textToSubmit = overrideText || chatQuery;
+    if (!textToSubmit.trim()) return;
     
-    setChatHistory(prev => [...prev, { sender: "user", text: chatQuery }]);
+    setChatHistory(prev => [...prev, { sender: "user", text: textToSubmit }]);
     
-    // Fake NLP Response
+    const query = textToSubmit.toLowerCase();
+    let responseText = "Analyzing query semantics... Based on the latest matrix, our AI agents have simulated options to mitigate active risks.";
+    
+    // Intelligent keyword-based dynamic responses
+    if (query.match(/hi|hello|hey/)) {
+       responseText = "Hello! I am Nexus Operations AI. How can I assist you with your supply chain logistics today?";
+    } else if (query.includes("cost") || query.includes("financial") || query.includes("money")) {
+       const money = state?.decision_result?.options?.[0]?.financials;
+       if (money) {
+           responseText = `Financial Simulator indicates a delay penalty of ₹${money.delay_cost.toLocaleString()}. By enacting our optimal vector, we avoid the penalty minus a ₹${money.rerouting_cost.toLocaleString()} action cost, netting ₹${money.net_savings.toLocaleString()} in savings.`;
+       } else {
+           responseText = "Financials are stable. No current delay penalties mapped.";
+       }
+    } else if (query.includes("delay") || query.includes("eta") || query.includes("time") || query.includes("late")) {
+       if (state?.eta_result) {
+           responseText = `Shipment ${state.shipment?.id} was originally due ${state.eta_result.original_eta}. We predict a revised ETA of ${state.eta_result.predicted_eta} (${state.eta_result.delay_probability_percent}% probability) due to ${state.monitor_result?.anomaly_type || 'unforeseen disruptions'}.`;
+       } else {
+           responseText = "All shipments are currently mapping to their original ETAs. No delays detected on-chain.";
+       }
+    } else if (query.includes("risk") || query.includes("danger") || query.includes("weather")) {
+       if (state?.risk_result) {
+           responseText = `System indicates a ${state.risk_result.risk_category} threat level (Score: ${state.risk_result.risk_score}). Reason: ${state.risk_result.reason}.`;
+       } else {
+           responseText = "Threat vectors are currently low across the designated route.";
+       }
+    } else if (query.includes("vendor") || query.includes("score") || query.includes("supplier")) {
+       if (state?.shipment?.vendor_details) {
+           const v = state.shipment.vendor_details;
+           responseText = `${v.vendor_name} currently holds an ML reliability score of ${v.reliability_score}/100. Their delay history is mapped as ${v.delay_history_rating}.`;
+       } else {
+           responseText = "Vendor metrics are mapping nominally. No active SLA breaches recorded.";
+       }
+    } else if (query.includes("more") || query.includes("info") || query.includes("detail") || query.includes("explain") || query.includes("about")) {
+       if (state?.report_result) {
+           responseText = `Detailed Analysis: ${state.report_result.explanation} The AI resolution was evaluated by the policy engine and is designated as: ${state.policy_result?.approved ? 'POLICY VALIDATED' : 'MANUAL APPROVAL REQUIRED'}.`;
+       } else if (state?.monitor_result) {
+           responseText = `Current situation context: ${state.monitor_result.description}. We are monitoring the vector.`;
+       } else {
+           responseText = "Our agent swarm is continuously analyzing real-time data from 400+ endpoints. No further anomalies are actively flagged.";
+       }
+    }
+
+    setChatQuery("");
+    
     setTimeout(() => {
        setChatHistory(prev => [...prev, { 
          sender: "nexus", 
-         text: `Analyzing query semantics... Based on the latest matrix, the shipment is ${state?.shipment?.status || 'Active'}. Our AI agents have simulated options to mitigate the risk and confidence score is optimal.` 
+         text: responseText 
        }]);
-    }, 1000);
-    setChatQuery("");
+    }, 600 + Math.random() * 500); // 600 - 1100ms fake thinking delay
   }
 
   // Real-time Risk Alerts derived from logs
   const latestAlerts = logs.filter(l => l.agent_name === "RISK_AGENT" || l.agent_name === "SLA_MONITOR").slice(-3);
+  
+  const SUGGESTED_QUERIES = [
+    "What is the delay?",
+    "Give me more information about it",
+    "What is the financial impact?",
+    "Check Vendor Score"
+  ];
 
   return (
     <div className="min-h-screen bg-[#02040a] p-4 md:p-6 font-sans text-slate-200 overflow-x-hidden relative">
@@ -247,7 +297,7 @@ export default function Dashboard() {
            {chatOpen ? (
              <motion.div 
                initial={{ opacity: 0, scale: 0.9, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 20 }}
-               className="bg-black/80 backdrop-blur-3xl border border-cyan-500/40 rounded-2xl shadow-2xl shadow-cyan-900/20 w-[350px] overflow-hidden flex flex-col h-[450px]"
+               className="bg-black/80 backdrop-blur-3xl border border-cyan-500/40 rounded-2xl shadow-2xl shadow-cyan-900/20 w-[350px] overflow-hidden flex flex-col h-[500px]"
              >
                <div className="bg-cyan-950/50 p-3 border-b border-cyan-500/30 flex justify-between items-center">
                  <div className="flex items-center gap-2 text-cyan-300 font-bold tracking-widest uppercase text-sm">
@@ -259,14 +309,27 @@ export default function Dashboard() {
                <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
                  {chatHistory.map((msg, i) => (
                     <div key={i} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
-                       <div className={`p-3 max-w-[80%] rounded-2xl text-xs leading-relaxed font-mono ${msg.sender === 'user' ? 'bg-indigo-600 border border-indigo-400 text-white rounded-tr-none' : 'bg-slate-800/80 border border-slate-600 text-teal-200 rounded-tl-none'}`}>
+                       <div className={`p-3 max-w-[85%] rounded-2xl text-xs leading-relaxed font-mono ${msg.sender === 'user' ? 'bg-indigo-600 border border-indigo-400 text-white rounded-tr-none' : 'bg-slate-800/80 border border-slate-600 text-teal-200 rounded-tl-none'}`}>
                           {msg.text}
                        </div>
                     </div>
                  ))}
                </div>
 
-               <form onSubmit={submitChat} className="p-3 border-t border-cyan-500/20 bg-black/60 flex items-center gap-2">
+               {/* Predefined Trigger Keywords / Suggestions */}
+               <div className="p-2 border-t border-cyan-500/10 bg-black/40 flex flex-wrap gap-2">
+                 {SUGGESTED_QUERIES.map((q, idx) => (
+                    <button 
+                      key={idx} 
+                      onClick={() => submitChat(undefined, q)}
+                      className="px-2 py-1 bg-cyan-900/40 border border-cyan-500/30 rounded-md text-[10px] text-cyan-200 hover:bg-cyan-700/60 transition-colors whitespace-nowrap"
+                    >
+                      {q}
+                    </button>
+                 ))}
+               </div>
+
+               <form onSubmit={(e) => submitChat(e)} className="p-3 border-t border-cyan-500/20 bg-black/60 flex items-center gap-2">
                  <input 
                    type="text" 
                    value={chatQuery}
