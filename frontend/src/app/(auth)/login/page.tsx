@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { setToken } from "@/lib/auth";
 import Link from "next/link";
 import { motion } from "framer-motion";
+import { GoogleLogin } from "@react-oauth/google";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -12,6 +13,25 @@ export default function Login() {
   const [otp, setOtp] = useState("");
   const [error, setError] = useState("");
   const router = useRouter();
+
+  const handleGoogleSuccess = async (credentialResponse: any) => {
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/auth/oauth/google`, {
+        method: "POST",
+        headers: { 
+            "Content-Type": "application/json",
+            "token": credentialResponse.credential 
+        },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "Google authentication failed");
+      
+      setToken(data.access_token);
+      router.push("/");
+    } catch (err: any) {
+      setError(err.message);
+    }
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -54,23 +74,6 @@ export default function Login() {
       setError(err.message);
     }
   };
-
-  const handleGoogleMock = async () => {
-    try {
-        const mockPayload = btoa(JSON.stringify({ email: "user@demo.com" }));
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/auth/oauth/google`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json", "token": `mock.${mockPayload}` },
-        });
-        const data = await res.json();
-        if(res.ok) {
-            setToken(data.access_token);
-            router.push("/");
-        }
-    } catch (err) {
-        console.error(err);
-    }
-  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-black/90 p-4 relative overflow-hidden">
@@ -126,13 +129,16 @@ export default function Login() {
                 <span className="flex-shrink-0 mx-4 text-neutral-500 text-xs uppercase tracking-widest">OR</span>
                 <div className="flex-grow border-t border-white/10"></div>
             </div>
-            <button
-              type="button"
-              onClick={handleGoogleMock}
-              className="w-full bg-white/5 hover:bg-white/10 text-white font-medium py-3 rounded-lg transition-colors border border-white/10 flex items-center justify-center gap-3 space-x-2"
-            >
-               Mock Sign in with Google (Demo)
-            </button>
+            
+            <div className="flex justify-center">
+                <GoogleLogin 
+                    onSuccess={handleGoogleSuccess}
+                    onError={() => setError("Google Login Failed")}
+                    theme="filled_black"
+                    shape="pill"
+                    width="100%"
+                />
+            </div>
           </form>
         ) : (
           <form onSubmit={handleVerifyOTP} className="space-y-4">

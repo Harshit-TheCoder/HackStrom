@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     MAX_LLM_CALLS: int = int(os.getenv("MAX_LLM_CALLS", "5"))
     ENABLE_LLM_CACHE: bool = os.getenv("ENABLE_LLM_CACHE", "True").lower() == "true"
     WEB_CONCURRENCY: int = 1
+    GOOGLE_CLIENT_ID: Optional[str] = os.getenv("GOOGLE_CLIENT_ID")
     
     # Postgres configuration
     POSTGRES_USER: str = os.getenv("POSTGRES_USER", "postgres")

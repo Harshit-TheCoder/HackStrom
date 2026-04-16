@@ -152,21 +152,34 @@ async def verify_mfa(mfa_in: MFARequest, db: AsyncSession = Depends(get_db)):
 
 @router.post("/oauth/google")
 async def google_oauth_login(token: str = Header(...), db: AsyncSession = Depends(get_db)):
+    # Real Google OAuth Verification
+    from google.oauth2 import id_token
+    from google.auth.transport import requests
+    from app.core.config import settings
+
     try:
-        import json, base64
-        payload = token.split(".")[1]
-        decoded = json.loads(base64.urlsafe_b64decode(payload + "=="))
-        email = decoded.get("email").strip().lower()
-    except Exception:
-        raise HTTPException(401, "Invalid Google Token")
+        # Verify the ID token
+        idinfo = id_token.verify_oauth2_token(token, requests.Request(), settings.GOOGLE_CLIENT_ID)
+
+        # Basic Profile and Email
+        email = idinfo['email'].strip().lower()
+        full_name = idinfo.get('name', '')
         
+        print(f"DEBUG: [oauth] Verified Google User {email}")
+    except ValueError as e:
+        print(f"DEBUG: [oauth] Google Token Invalid: {e}")
+        raise HTTPException(401, f"Invalid Google Token: {e}")
+        
+    # Find or Create User
     result = await db.execute(select(User))
     user = next((u for u in result.scalars().all() if decrypt_pii(u.encrypted_email) == email), None)
     
     if not user:
+        print(f"DEBUG: [oauth] Creating new user for {email}")
         user = User(
             encrypted_email=encrypt_pii(email),
-            hashed_password=get_password_hash("oauth_stub"),
+            encrypted_full_name=encrypt_pii(full_name) if full_name else None,
+            hashed_password=get_password_hash("oauth_stub_" + str(random.random())),
             role="User",
             mfa_enabled=False 
         )
@@ -175,4 +188,4 @@ async def google_oauth_login(token: str = Header(...), db: AsyncSession = Depend
         await db.refresh(user)
 
     access_token = create_access_token(subject=user.id, roles=user.role)
-    return {"access_token": access_token, "token_type": "bearer"}
+    return {"access_token": access_token, "token_type": "bearer", "mfa_pending": False}
