@@ -20,9 +20,8 @@ class PipelineOrchestrator:
                 logs=[f"Analyzing data step..."]
             ))
             
-            # Artificial delay to make the reading pace realistic for human operators
-            # and to properly show sequences one-by-one.
-            await asyncio.sleep(1.5)
+            # Reduced delay for a snappier real-time experience in Chaos Mode
+            await asyncio.sleep(0.4)
             
             result = await agent.process(context)
             setattr(context, assign_field, result)

@@ -21,7 +21,7 @@ export default function ShipmentTracker({ state }: { state: any }) {
     <motion.div 
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="glass-panel-accent p-6 rounded-2xl flex flex-col gap-5 h-full overflow-y-auto custom-scrollbar"
+      className="glass-panel-accent p-6 rounded-2xl flex flex-col gap-5 h-[350px] overflow-y-auto custom-scrollbar"
     >
       <div className="flex flex-col gap-3 border-b border-cyan-500/20 pb-4">
         <div className="flex justify-between items-start">

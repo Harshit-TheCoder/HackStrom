@@ -27,10 +27,10 @@ def _get_fallback_for_schema(schema: Type[T]) -> T:
                     "confidence_score": 0.85, 
                     "financials": {"delay_cost": 150000, "rerouting_cost": 30000, "penalty_avoided": 120000, "net_savings": 120000}
                 }], 
-                "recommended_action": "Reroute to Ennore Port", 
+                "recommended_action": "Reroute via Cape of Good Hope", 
                 "auto_pilot_executed": True,
-                "alternative_route": ["Indian Ocean", "Vishakapatnam Port", "Chennai"],
-                "policy_impact": "Compliance with Indian Maritime Safety Directive 2026-A: Mandatory storm detour protocols."
+                "alternative_route": ["UAE Port", "Durban", "Rotterdam"],
+                "policy_impact": "Compliance with Indian Maritime Safety Directive 2026-A: Mandatory storm/blockade detour protocols for Suez transit."
             },
             "SimulationOutput": {"selected_option_validated": "Reroute to Ennore Port", "time_impact": "Saves 2 days", "cost_impact": "Adds $2000 in transit", "reliability_score": 85, "comparison_summary": "Rerouting saves ₹1.2L vs delay penalty.", "self_learning_feedback": "Vendor Ennore Logistics updated: +5 Reliability."},
             "PolicyOutput": {"approved": True, "budget_constraint_met": True, "notes": "Approved under emergency routing policy exception."},
@@ -49,10 +49,10 @@ def _get_fallback_for_schema(schema: Type[T]) -> T:
                     "confidence_score": 0.90, 
                     "financials": {"delay_cost": 250000, "rerouting_cost": 50000, "penalty_avoided": 200000, "net_savings": 200000}
                 }], 
-                "recommended_action": "Engage Premium Broker", 
+                "recommended_action": "Engage Premium Broker (Fast-Track)", 
                 "auto_pilot_executed": False,
-                "alternative_route": ["Customs Terminal B", "Global Hub", "Mumbai Port"],
-                "policy_impact": "Aligned with Global Trade Facilitation Agreement Article 7: Fast-track clearing for high-value time-sensitive medical/perishable assets."
+                "alternative_route": ["Customs Terminal B", "Mumbai Port", "Dubai"],
+                "policy_impact": "Aligned with Global Trade Facilitation Agreement Article 7: Emergency clearance for high-value perishable assets."
             },
             "SimulationOutput": {"selected_option_validated": "Engage Premium Broker", "time_impact": "Reduces delay to 1 day", "cost_impact": "$1500 expedition fee", "reliability_score": 90, "comparison_summary": "Saves perishable cargo worth $50,000 for a minor fee.", "self_learning_feedback": "Broker ML model weight adjusted: +0.02"},
             "PolicyOutput": {"approved": True, "budget_constraint_met": True, "notes": "Approved automatically due to high cargo value preservation rules."},

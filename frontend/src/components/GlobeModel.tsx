@@ -222,13 +222,7 @@ function ConnectingArc({
 
 export default function GlobeModel({ state }: { state?: any }) {
   return (
-    <div className="w-full h-full min-h-[300px] relative rounded-xl overflow-hidden glass-panel bg-black/60 shadow-[0_0_30px_rgba(6,182,212,0.1)] border border-cyan-900/30">
-      <div className="absolute inset-x-0 top-4 text-center z-10 pointer-events-none">
-        <p className="text-xs font-mono text-teal-400 tracking-widest neon-text-cyan flex items-center justify-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-teal-400 animate-pulse hidden sm:inline-block"></span>
-          GLOBAL ASSET TRACKING
-        </p>
-      </div>
+    <div className="w-full h-[350px] relative rounded-xl overflow-hidden bg-black/40 backdrop-blur-xl border border-orange-500/20">
       <Canvas camera={{ position: [0, 0, 5], fov: 45 }}>
         <color attach="background" args={['#01030a']} />
         <ambientLight intensity={0.2} />

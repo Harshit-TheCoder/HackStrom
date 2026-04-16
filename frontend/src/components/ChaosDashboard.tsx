@@ -21,12 +21,45 @@ export default function ChaosDashboard() {
   const [activeShipmentId, setActiveShipmentId] = useState<string>("SHP-CH-999");
   const activeTrackerRef = useRef("SHP-CH-999");
 
+  // Keep ref in sync for WebSocket closure
+  useEffect(() => {
+    activeTrackerRef.current = activeShipmentId;
+  }, [activeShipmentId]);
+
   const [state, setState] = useState<any>(null);
   const [logs, setLogs] = useState<any[]>([]);
-  const [isRunning, setIsRunning] = useState(true); // Default to RUNNING for chaos
+  const [isRunning, setIsRunning] = useState(false); // Default to false, user needs to INITIATE
   const [role, setRole] = useState<Role>("CRISIS_MGR");
   const [autoPilot, setAutoPilot] = useState(false);
   const ws = useRef<WebSocket | null>(null);
+
+  // Simulation controls
+  const toggleSimulation = async () => {
+    const endpoint = isRunning ? "/api/stop" : "/api/start";
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+    const token = getToken();
+    
+    try {
+      const res = await fetch(`${apiUrl}${endpoint}`, { 
+        method: 'POST',
+        headers: token ? { "Authorization": `Bearer ${token}` } : {}
+      });
+
+      if (res.status === 401) {
+        router.push("/login");
+        return;
+      }
+
+      if (res.ok) {
+        setIsRunning(!isRunning);
+        if (!isRunning) {
+          setLogs(prev => [...prev, { agent_name: "SYSTEM", status: "RUNNING", logs: ["Neural Engine Initialized. Data Sweep Active."], timestamp: Date.now() }]);
+        }
+      }
+    } catch (err) {
+      console.error("Simulation toggle failed", err);
+    }
+  };
 
   // Poll state endpoint
   useEffect(() => {
@@ -40,7 +73,6 @@ export default function ChaosDashboard() {
         const data = await res.json();
         if (data && data.status !== "idle") {
           setState(data);
-          // Sync autoPilot state from backend
           if (data.auto_pilot_mode !== undefined) {
              setAutoPilot(data.auto_pilot_mode);
           }
@@ -48,9 +80,11 @@ export default function ChaosDashboard() {
       } catch (err) {}
     };
 
-    const interval = setInterval(fetchState, 3000);
-    return () => clearInterval(interval);
-  }, [activeShipmentId]);
+    if (isRunning) {
+      const interval = setInterval(fetchState, 3000);
+      return () => clearInterval(interval);
+    }
+  }, [activeShipmentId, isRunning]);
 
   // WebSockets for live agent streaming
   useEffect(() => {
@@ -61,8 +95,13 @@ export default function ChaosDashboard() {
       ws.current = new WebSocket(wsUrl);
       ws.current.onmessage = (event) => {
         const data = JSON.parse(event.data);
-        if (!data.shipment_id || data.shipment_id === activeTrackerRef.current) {
-           setLogs(prev => [...prev, { ...data, timestamp: Date.now() }]);
+        // Relaxed filter: show if it matches current OR if it's a critical chaos trace and nothing else is selected
+        if (!data.shipment_id || data.shipment_id === activeTrackerRef.current || data.shipment_id.startsWith("SHP-CH")) {
+           setLogs(prev => {
+             // Avoid duplicate entries
+             if (prev.length > 50) return [...prev.slice(1), { ...data, timestamp: Date.now() }];
+             return [...prev, { ...data, timestamp: Date.now() }];
+           });
         }
       };
       ws.current.onclose = () => setTimeout(connectWs, 3000);
@@ -133,6 +172,24 @@ export default function ChaosDashboard() {
                 </div>
              </div>
              
+ 
+             <div className="flex items-center gap-2 bg-black p-1 rounded-xl border border-orange-500/30">
+                <button
+                  onClick={toggleSimulation}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-[0.2em] transition-all ${
+                    isRunning 
+                      ? 'bg-rose-600/20 text-rose-500 border border-rose-500/40 hover:bg-rose-600 hover:text-white' 
+                      : 'bg-emerald-600 text-white shadow-[0_0_20px_rgba(5,150,105,0.4)] hover:bg-emerald-500 hover:scale-105'
+                  }`}
+                >
+                  {isRunning ? (
+                    <><Square className="w-3 h-3 fill-current" /> OFFLINE</>
+                  ) : (
+                    <><Play className="w-3 h-3 fill-current" /> INITIATE</>
+                  )}
+                </button>
+             </div>
+
              <Link href="/">
                 <button className="flex items-center gap-2 bg-slate-900/50 hover:bg-slate-800 text-slate-400 border border-white/5 px-6 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition-all">
                    <Terminal className="w-4 h-4"/> REAL dashboard
@@ -140,46 +197,40 @@ export default function ChaosDashboard() {
              </Link>
 
              {/* Auto-Pilot Toggle in Chaos Style */}
-             <div className="flex items-center gap-3 bg-black/40 px-3 py-2 rounded-lg border border-orange-500/20" onClick={toggleAutoPilot}>
-               <span className="text-[10px] font-black uppercase tracking-widest text-orange-900">Auto-Pilot</span>
-               <div className={`w-10 h-5 rounded-md cursor-pointer relative px-0.5 flex items-center transition-colors ${autoPilot ? 'bg-orange-500/30 border border-orange-400/50' : 'bg-slate-900 border border-slate-700'}`}>
-                  <motion.div layout className={`w-4 h-4 rounded-sm ${autoPilot ? 'bg-orange-500 shadow-[0_0_10px_rgba(249,115,22,0.8)]' : 'bg-slate-600'}`} animate={{ x: autoPilot ? 20 : 0 }} />
-               </div>
-             </div>
-
-             <motion.button 
-               whileHover={{ scale: 1.05, boxShadow: "0 0 30px rgba(249,115,22,0.4)" }}
-               whileTap={{ scale: 0.95 }}
-               onClick={() => {
-                 // Trigger the first disturbance type as a "Strategic Reroute"
-                 const firstType = "Suez Blockage"; 
-                 const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-                 const token = getToken();
-                 const chaosId = `SHP-CH-${Math.floor(Math.random() * 899) + 100}`;
-                 
-                 fetch(`${apiUrl}/api/disturb`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', ...(token ? { 'Authorization': `Bearer ${token}` } : {}) },
-                    body: JSON.stringify({
-                      shipment_id: chaosId,
-                      disturbance_type: firstType,
-                      severity: "Critical",
-                      description: "Global artery blockage. Massive trade bottleneck."
-                    })
-                 }).then(() => {
-                   setActiveShipmentId(chaosId);
-                   activeTrackerRef.current = chaosId;
-                 });
-               }}
-               className="bg-orange-600 hover:bg-orange-500 text-white border border-orange-400 px-6 py-2.5 rounded-lg font-black text-xs tracking-[0.2em] shadow-[0_0_20px_rgba(249,115,22,0.2)] transition-all flex items-center gap-2"
-             >
-               <Zap className="w-4 h-4 fill-current" /> EXECUTE STRATEGIC REROUTE
-             </motion.button>
+              {/* Primary Strategic Action */}
+              <motion.button 
+                whileHover={{ scale: 1.05, boxShadow: "0 0 30px rgba(249,115,22,0.4)" }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => {
+                  const firstType = "Suez Blockage"; 
+                  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+                  const token = getToken();
+                  const chaosId = activeShipmentId;
+                  
+                  // Clear previous logs for fresh uplink feedback
+                  setLogs([]);
+                  
+                  fetch(`${apiUrl}/api/disturb`, {
+                     method: 'POST',
+                     headers: { 'Content-Type': 'application/json', ...(token ? { 'Authorization': `Bearer ${token}` } : {}) },
+                     body: JSON.stringify({
+                       shipment_id: chaosId,
+                       disturbance_type: firstType,
+                       severity: "CRITICAL",
+                       description: "Suez Canal blockage detected. Immediate reroute required."
+                     })
+                  });
+                }}
+                className="bg-orange-600 hover:bg-orange-500 text-white px-6 py-2 rounded-lg font-black italic uppercase tracking-tighter flex items-center gap-2 border-2 border-orange-400/50 shadow-[0_0_20px_rgba(234,88,12,0.4)] transition-all"
+              >
+                <Zap className="w-5 h-5 fill-white" />
+                Execute Strategic Reroute
+              </motion.button>
           </div>
         </motion.div>
 
         {/* Chaos Layout */}
-        <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 h-[calc(100vh-200px)]">
+        <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 min-h-screen pb-20">
           
           {/* Threats & Simulator */}
           <div className="xl:col-span-3 h-full overflow-hidden">
@@ -196,7 +247,7 @@ export default function ChaosDashboard() {
           </div>
 
           {/* Main Visualization Center */}
-          <div className="xl:col-span-6 flex flex-col gap-6 overflow-y-auto custom-scrollbar p-1">
+          <div className="xl:col-span-6 flex flex-col gap-6 p-1">
              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 min-h-[350px]">
                 <div className="border border-orange-500/20 rounded-2xl overflow-hidden shadow-2xl relative group">
                    <div className="absolute top-3 left-3 z-10 bg-black/80 border border-orange-500/30 px-3 py-1 rounded text-[10px] text-orange-500 font-bold uppercase">Target Telemetry</div>
@@ -218,68 +269,23 @@ export default function ChaosDashboard() {
              <ActionCards state={state} />
           </div>
 
-          {/* Agent reasoning - Re-skinned */}
-          <div className="xl:col-span-3 h-full overflow-hidden flex flex-col border border-orange-500/20 rounded-2xl bg-black/40 backdrop-blur-xl">
-             <div className="p-4 border-b border-orange-500/20 flex items-center justify-between bg-orange-950/20">
-                <span className="text-xs font-black uppercase tracking-widest text-orange-500">Neural Agent Uplink</span>
-                <span className="flex h-2 w-2 rounded-full bg-orange-500 animate-pulse" />
-             </div>
-             <div className="flex-1 overflow-hidden relative">
-                <ReasoningStream logs={logs} />
-                {/* Visual "Static/Interference" overlay for chaos effect */}
-                <div className="absolute inset-0 pointer-events-none bg-gradient-to-t from-orange-500/5 to-transparent mix-blend-screen opacity-10" />
-             </div>
-          </div>
+           {/* Agent reasoning - Re-skinned and taller for visibility */}
+           <div className="xl:col-span-3 h-[600px] overflow-hidden flex flex-col border border-orange-500/20 rounded-2xl bg-black/40 backdrop-blur-xl">
+              <div className="p-4 border-b border-orange-500/20 flex items-center justify-between bg-orange-950/20 text-orange-500">
+                 <div className="flex items-center gap-2">
+                    <Terminal className="w-5 h-5" />
+                    <span className="text-xs font-black uppercase tracking-widest ">Neural Agent Uplink</span>
+                 </div>
+                 <span className="flex h-2 w-2 rounded-full bg-orange-500 animate-pulse" />
+              </div>
+              <div className="flex-1 overflow-hidden relative">
+                 <ReasoningStream logs={logs} />
+                 {/* Visual "Static/Interference" overlay for chaos effect */}
+                 <div className="absolute inset-0 pointer-events-none bg-gradient-to-t from-orange-500/5 to-transparent mix-blend-screen opacity-10" />
+              </div>
+           </div>
 
         </div>
-
-        {/* Cinematic Decision Overlay */}
-        <AnimatePresence>
-           {state?.decision_result && (
-              <motion.div 
-                initial={{ opacity: 0, y: 50, scale: 0.9 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, scale: 1.1 }}
-                className="fixed bottom-12 left-1/2 -translate-x-1/2 z-[100] w-[600px] pointer-events-none"
-              >
-                 <div className="bg-black/90 backdrop-blur-3xl border-2 border-orange-500/50 rounded-2xl p-6 shadow-[0_0_100px_rgba(249,115,22,0.3)] relative overflow-hidden">
-                    <div className="absolute top-0 left-0 w-full h-1 bg-orange-500 animate-pulse" />
-                    
-                    <div className="flex items-center gap-4 mb-4">
-                       <BrainCircuit className="w-8 h-8 text-orange-400" />
-                       <h3 className="text-xl font-black italic text-orange-500 tracking-tighter uppercase">Strategic Decision Engine</h3>
-                    </div>
-
-                    <div className="grid grid-cols-3 gap-4">
-                       <div className="space-y-1">
-                          <span className="text-[9px] font-bold text-slate-500 uppercase">Input Problem</span>
-                          <div className="bg-rose-950/40 p-2 rounded border border-rose-500/30 text-rose-400 text-[10px] font-bold uppercase">
-                             {state.monitor_result?.anomaly_type || "DETECTION_PENDING"}
-                          </div>
-                       </div>
-                       <div className="space-y-1">
-                          <span className="text-[9px] font-bold text-slate-500 uppercase">Policy Check</span>
-                          <div className="bg-indigo-950/40 p-2 rounded border border-indigo-500/30 text-indigo-300 text-[9px] leading-tight line-clamp-2">
-                             {state.decision_result.policy_impact || "COMPLIANCE_VERIFIED"}
-                          </div>
-                       </div>
-                       <div className="space-y-1">
-                          <span className="text-[9px] font-bold text-slate-500 uppercase">Execution</span>
-                          <div className="bg-emerald-950/40 p-2 rounded border border-emerald-500/30 text-emerald-400 text-[10px] font-black uppercase">
-                             REROUTE_SUCCESS
-                          </div>
-                       </div>
-                    </div>
-
-                    <div className="mt-4 pt-4 border-t border-white/5 flex items-center justify-between">
-                       <span className="text-xs text-slate-400 font-mono italic">&gt; {state.decision_result.recommended_action}</span>
-                       <span className="text-[10px] font-black text-orange-500">SAVINGS: ₹{state.decision_result.options?.[0]?.financials?.penalty_avoided?.toLocaleString() || "0"}</span>
-                    </div>
-                 </div>
-              </motion.div>
-           )}
-        </AnimatePresence>
-
       </div>
 
       <style dangerouslySetInnerHTML={{ __html: `

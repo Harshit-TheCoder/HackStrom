@@ -77,6 +77,7 @@ class DecisionOutput(BaseModel):
     recommended_action: str = Field(description="The best option selected.")
     auto_pilot_executed: bool = Field(default=False)
     alternative_route: List[str] = Field(default=[], description="List of location names for the suggested detour.")
+    policy_impact: str = Field(default="Normal Operations", description="Regulatory or compliance implications of the decision.")
 
 class SimulationOutput(BaseModel):
     selected_option_validated: str = Field(description="The simulated option.")
