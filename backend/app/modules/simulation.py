@@ -1,5 +1,5 @@
 import json
-from app.core.gemini import gemini_client
+from app.core.llm import llm_factory
 from app.schemas import SimulationOutput, ControlTowerContext
 
 class SimulationAgent:
@@ -12,6 +12,6 @@ class SimulationAgent:
         Estimate the quantitative impact on time and cost.
         Provide a reliability score out of 100 for this action.
         """
-        return await gemini_client.generate_structured(prompt, SimulationOutput)
+        return await llm_factory.generate_structured(prompt, SimulationOutput)
 
 simulation_agent = SimulationAgent()

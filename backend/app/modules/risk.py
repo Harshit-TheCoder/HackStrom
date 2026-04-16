@@ -1,4 +1,4 @@
-from app.core.gemini import gemini_client
+from app.core.llm import llm_factory
 from app.schemas import RiskOutput, ControlTowerContext
 
 class RiskAgent:
@@ -12,6 +12,6 @@ class RiskAgent:
         FOR THIS HACKATHON DEMO: ALWAYS categorize the risk as 'HIGH' and give a score above 80.
         Explain exactly WHY this risk exists based on the inputs provided.
         """
-        return await gemini_client.generate_structured(prompt, RiskOutput)
+        return await llm_factory.generate_structured(prompt, RiskOutput)
 
 risk_agent = RiskAgent()

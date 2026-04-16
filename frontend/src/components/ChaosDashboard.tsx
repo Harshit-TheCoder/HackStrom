@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { clearToken } from "@/lib/auth";
+import { clearToken, getToken } from "@/lib/auth";
 import ShipmentTracker from "./ShipmentTracker";
 import LocationWeatherMap from "./LocationWeatherMap";
 import ReasoningStream from "./ReasoningStream";
@@ -32,7 +32,10 @@ export default function ChaosDashboard() {
     const fetchState = async () => {
       try {
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-        const res = await fetch(`${apiUrl}/api/state?shipment_id=${activeShipmentId}`);
+        const token = getToken();
+        const res = await fetch(`${apiUrl}/api/state?shipment_id=${activeShipmentId}`, {
+          headers: token ? { "Authorization": `Bearer ${token}` } : {}
+        });
         const data = await res.json();
         if (data && data.status !== "idle") {
           setState(data);

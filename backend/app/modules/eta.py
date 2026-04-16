@@ -1,5 +1,5 @@
 import json
-from app.core.gemini import gemini_client
+from app.core.llm import llm_factory
 from app.schemas import ETAOutput, ControlTowerContext
 
 class ETAAgent:
@@ -13,6 +13,6 @@ class ETAAgent:
         Task: Recalculate the predicted ETA. Factor in weather severity and anomalies.
         Provide the probability of delay as a percentage.
         """
-        return await gemini_client.generate_structured(prompt, ETAOutput)
+        return await llm_factory.generate_structured(prompt, ETAOutput)
 
 eta_agent = ETAAgent()

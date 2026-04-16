@@ -10,11 +10,14 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
 from app.db.database import init_db
 from app.modules.auth import router as auth_router
 from contextlib import asynccontextmanager
 from app.infrastructure.memory import vector_memory
 from app.core.events import event_bus
+from app.core.dependencies import get_current_user
+from fastapi import Depends
 
 limiter = Limiter(key_func=get_remote_address)
 
@@ -41,6 +44,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
         return response
 
+app.add_middleware(SlowAPIMiddleware)
 app.add_middleware(SecurityHeadersMiddleware)
 
 app.add_middleware(
@@ -169,6 +173,7 @@ async def websocket_endpoint(websocket: WebSocket):
         manager.disconnect(websocket)
 
 async def run_simulation_loop():
+    print("DEBUG: [simulation] Entering run_simulation_loop")
     global global_contexts, simulation_running
     import random
     
@@ -234,13 +239,16 @@ async def run_simulation_loop():
             )
             
             # Run orchestrated agents
+            print(f"DEBUG: [simulation] Running pipeline for {sid}")
             global_contexts[sid] = await orchestrator.run_pipeline(ctx)
             
         # Re-run loop every X seconds for the demo
         await asyncio.sleep(8)
 
-@app.post("/api/start")
-async def start_simulation(background_tasks: BackgroundTasks):
+@app.post("/api/start", dependencies=[Depends(get_current_user)])
+@limiter.limit("10/minute")
+async def start_simulation(request: Request, background_tasks: BackgroundTasks):
+    print("DEBUG: [api] POST /api/start received")
     global simulation_running
     if not simulation_running:
         simulation_running = True
@@ -248,8 +256,10 @@ async def start_simulation(background_tasks: BackgroundTasks):
         background_tasks.add_task(run_simulation_loop)
     return {"status": "started"}
 
-@app.post("/api/stop")
-async def stop_simulation():
+@app.post("/api/stop", dependencies=[Depends(get_current_user)])
+@limiter.limit("10/minute")
+async def stop_simulation(request: Request):
+    print("DEBUG: [api] POST /api/stop received")
     global simulation_running
     simulation_running = False
     return {"status": "stopped"}
@@ -261,8 +271,9 @@ async def get_state(shipment_id: str = "SHP-X9001"):
         return {"status": "idle"}
     return ctx.model_dump()
 
-@app.get("/api/states")
-async def get_all_states():
+@app.get("/api/states", dependencies=[Depends(get_current_user)])
+@limiter.limit("30/minute")
+async def get_all_states(request: Request):
     # Return mapping of all states
     return {sid: ctx.model_dump() for sid, ctx in global_contexts.items()}
 
@@ -282,8 +293,9 @@ async def get_shipments(mode: str = "all"):
         return [s for s in all_shipments if s["id"].startswith("SHP-CH-")]
     return all_shipments
 
-@app.post("/api/disturb", response_model=DisturbanceResponse)
-async def create_disturbance(req: DisturbanceRequest):
+@app.post("/api/disturb", response_model=DisturbanceResponse, dependencies=[Depends(get_current_user)])
+@limiter.limit("10/minute")
+async def create_disturbance(request: Request, req: DisturbanceRequest):
     # If the shipment doesn't exist, create a new separate Chaos shipment
     if req.shipment_id not in global_contexts:
         import random
@@ -317,8 +329,9 @@ async def create_disturbance(req: DisturbanceRequest):
     manual_disturbances[target_id] = req.model_dump()
     return {"status": "success", "message": f"Injected {req.disturbance_type} into {target_id}"}
 
-@app.delete("/api/disturb/{shipment_id}")
-async def clear_disturbance(shipment_id: str):
+@app.delete("/api/disturb/{shipment_id}", dependencies=[Depends(get_current_user)])
+@limiter.limit("10/minute")
+async def clear_disturbance(request: Request, shipment_id: str):
     if shipment_id in manual_disturbances:
         del manual_disturbances[shipment_id]
         return {"status": "success", "message": "Disturbance cleared"}

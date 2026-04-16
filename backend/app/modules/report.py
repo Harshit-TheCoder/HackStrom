@@ -1,5 +1,5 @@
 import json
-from app.core.gemini import gemini_client
+from app.core.llm import llm_factory
 from app.schemas import ReportOutput, ControlTowerContext
 
 class ReportAgent:
@@ -16,6 +16,6 @@ class ReportAgent:
         Task: Synthesize the final structured JSON payload containing the summary, explicitly approved actions to take, and a clear explanation of the entire logic chain.
         This output will be consumed by the dashboard and stakeholders.
         """
-        return await gemini_client.generate_structured(prompt, ReportOutput)
+        return await llm_factory.generate_structured(prompt, ReportOutput)
 
 report_agent = ReportAgent()

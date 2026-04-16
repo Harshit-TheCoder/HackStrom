@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Activity, Wind, CloudRain, Zap, X, AlertTriangle, ShieldCheck, Anchor, DollarSign, Snowflake, Droplets } from "lucide-react";
+import { Activity, Wind, CloudRain, Zap, X, AlertTriangle, ShieldCheck, Anchor, DollarSign, Snowflake, Droplets, LogOut } from "lucide-react";
+import { getToken, clearToken } from "@/lib/auth";
 
 interface Shipment {
   id: string;
@@ -28,12 +29,18 @@ export default function ChaosControl({
   useEffect(() => {
     const fetchShipments = async () => {
       try {
-        const res = await fetch(`${API_URL}/api/shipments?mode=${mode}`);
+        const token = getToken();
+        const res = await fetch(`${API_URL}/api/shipments?mode=${mode}`, {
+          headers: token ? { "Authorization": `Bearer ${token}` } : {}
+        });
+
+        if (res.status === 401) {
+            // Silence silent token expiry for polling
+            return;
+        }
+
         const data = await res.json();
         setShipments(data);
-        
-        // Populate active disturbances from names of existing chaos shipments if needed
-        // For simplicity, we'll just track the ones launched in this session
       } catch (err) {
         console.error("Failed to fetch shipments", err);
       }
@@ -52,9 +59,13 @@ export default function ChaosControl({
     // Generate a unique ID for the new separate route
     const chaosId = `SHP-CH-${Math.floor(Math.random() * 899) + 100}`;
     try {
-      await fetch(`${API_URL}/api/disturb`, {
+      const token = getToken();
+      const res = await fetch(`${API_URL}/api/disturb`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          ...(token ? { "Authorization": `Bearer ${token}` } : {})
+        },
         body: JSON.stringify({
           shipment_id: chaosId,
           disturbance_type: type,
@@ -62,6 +73,13 @@ export default function ChaosControl({
           description: desc
         })
       });
+
+      if (res.status === 401) {
+          alert("Session Expired. Please login.");
+          clearToken();
+          window.location.reload();
+          return;
+      }
       // Optionally switch to the new route immediately
       onShipmentChange(chaosId);
       setActiveDisturbances(prev => ({ ...prev, [chaosId]: { type, severity } }));
@@ -74,7 +92,18 @@ export default function ChaosControl({
 
   const clearDisturbance = async (id: string) => {
     try {
-      await fetch(`${API_URL}/api/disturb/${id}`, { method: "DELETE" });
+      const token = getToken();
+      const res = await fetch(`${API_URL}/api/disturb/${id}`, { 
+        method: "DELETE",
+        headers: token ? { "Authorization": `Bearer ${token}` } : {}
+      });
+
+      if (res.status === 401) {
+          alert("Session Expired.");
+          clearToken();
+          window.location.reload();
+          return;
+      }
       setActiveDisturbances(prev => {
         const next = { ...prev };
         delete next[id];

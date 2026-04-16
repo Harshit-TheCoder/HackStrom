@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { clearToken } from "@/lib/auth";
+import { clearToken, getToken } from "@/lib/auth";
 import ShipmentTracker from "./ShipmentTracker";
 import LocationWeatherMap from "./LocationWeatherMap";
 import ReasoningStream from "./ReasoningStream";
@@ -47,7 +47,16 @@ export default function Dashboard() {
     const fetchState = async () => {
       try {
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-        const res = await fetch(`${apiUrl}/api/state?shipment_id=${activeShipmentId}`);
+        const token = getToken();
+        const res = await fetch(`${apiUrl}/api/state?shipment_id=${activeShipmentId}`, {
+          headers: token ? { "Authorization": `Bearer ${token}` } : {}
+        });
+        
+        if (res.status === 401) {
+          // Silent failure for polling, but could log
+          return;
+        }
+
         const data = await res.json();
         if (data && data.status !== "idle") {
           setState(data);
@@ -94,8 +103,31 @@ export default function Dashboard() {
   const toggleSimulation = async () => {
     const endpoint = isRunning ? "/api/stop" : "/api/start";
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+    const token = getToken();
+    
     try {
-      await fetch(`${apiUrl}${endpoint}`, { method: 'POST' });
+      const res = await fetch(`${apiUrl}${endpoint}`, { 
+        method: 'POST',
+        headers: token ? { "Authorization": `Bearer ${token}` } : {}
+      });
+
+      if (res.status === 401) {
+        alert("Session Expired. Please login again.");
+        handleLogout();
+        return;
+      }
+
+      if (res.status === 429) {
+        alert("Action Rate Limited. Please wait a few seconds before retrying.");
+        return;
+      }
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        alert(`System Error: ${errorData.detail || "Failed to communicate with control tower."}`);
+        return;
+      }
+
       setIsRunning(!isRunning);
       if (!isRunning) {
         setLogs([{ agent_name: "SYSTEM", status: "RUNNING", logs: ["Initiating control tower simulation sequence..."], timestamp: Date.now() }]);

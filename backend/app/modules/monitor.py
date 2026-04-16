@@ -1,5 +1,5 @@
 import json
-from app.core.gemini import gemini_client
+from app.core.llm import llm_factory
 from app.schemas import MonitorOutput, ControlTowerContext
 
 class MonitorAgent:
@@ -17,6 +17,6 @@ class MonitorAgent:
         Only detect anomalies if there are visible disruptions in the provided telemetry, weather, or traffic data.
         Output ONLY structured JSON.
         """
-        return await gemini_client.generate_structured(prompt, MonitorOutput)
+        return await llm_factory.generate_structured(prompt, MonitorOutput)
 
 monitor_agent = MonitorAgent()

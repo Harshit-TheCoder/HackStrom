@@ -1,4 +1,4 @@
-from app.core.gemini import gemini_client
+from app.core.llm import llm_factory
 from app.schemas import DecisionOutput, ControlTowerContext
 from app.infrastructure.memory import vector_memory
 import json
@@ -26,6 +26,6 @@ class DecisionAgent:
         Include pros/cons, a confidence score (0.0 to 1.0), and estimated cost impact.
         Select one recommended action.
         """
-        return await gemini_client.generate_structured(prompt, DecisionOutput)
+        return await llm_factory.generate_structured(prompt, DecisionOutput)
 
 decision_agent = DecisionAgent()
