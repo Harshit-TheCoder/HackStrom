@@ -13,6 +13,7 @@ from slowapi.errors import RateLimitExceeded
 from app.db.database import init_db
 from app.modules.auth import router as auth_router
 from contextlib import asynccontextmanager
+from app.core.events import event_bus
 
 limiter = Limiter(key_func=get_remote_address)
 
@@ -20,6 +21,8 @@ limiter = Limiter(key_func=get_remote_address)
 async def lifespan(app: FastAPI):
     # Initialize DB on startup
     await init_db()
+    # Start EventBus logic
+    await event_bus.start()
     yield
 
 app = FastAPI(title="Real-Time Supply Chain Control Tower API", version="1.0.0", lifespan=lifespan)
@@ -168,7 +171,7 @@ async def run_simulation_loop():
             global_contexts[ship.id] = await orchestrator.run_pipeline(ctx)
             
         # Re-run loop every X seconds for the demo
-        await asyncio.sleep(20)
+        await asyncio.sleep(8)
 
 @app.post("/api/start")
 async def start_simulation(background_tasks: BackgroundTasks):

@@ -5,18 +5,61 @@ import { Canvas, useFrame, useLoader } from "@react-three/fiber";
 import { OrbitControls, Stars, Sphere } from "@react-three/drei";
 import * as THREE from "three";
 
-function Earth() {
+function latLongToVector3(lat: number, lon: number, radius: number): THREE.Vector3 {
+  const phi = (90 - lat) * (Math.PI / 180);
+  const theta = (lon + 180) * (Math.PI / 180);
+
+  const x = -(radius * Math.sin(phi) * Math.cos(theta));
+  const z = (radius * Math.sin(phi) * Math.sin(theta));
+  const y = (radius * Math.cos(phi));
+
+  return new THREE.Vector3(x, y, z);
+}
+
+const PRESET_LOCATIONS: Record<string, [number, number]> = {
+    "Singapore": [1.3521, 103.8198],
+    "Mumbai": [19.0760, 72.8777],
+    "Mumbai Port": [18.9400, 72.8300],
+    "Approaching Chennai Port": [13.0827, 80.2707],
+    "Chennai": [13.0827, 80.2707],
+    "UAE Port": [25.2769, 55.2962],
+    "Gujarat Port": [22.7300, 69.7300],
+    "Vishakapatnam Port": [17.6800, 83.2100],
+    "Shanghai": [31.2304, 121.4737],
+    "Rotterdam": [51.9244, 4.4777],
+    "New York": [40.7128, -74.0060],
+    "Arabian Sea": [15.0, 65.0],
+    "Bay of Bengal": [15.0, 88.0],
+    "Malacca Strait": [4.0, 100.0],
+    "Red Sea": [20.0, 38.0],
+    "Mediterranean": [35.0, 18.0]
+};
+
+function Earth({ state }: { state?: any }) {
   const earthRef = useRef<THREE.Group>(null);
-  
-  // Load high-res clear earth texture showing continents (daylight texture for maximum visibility)
   const colorMap = useLoader(THREE.TextureLoader, 'https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/planets/earth_atmos_2048.jpg');
 
-  // Rotate earth slowly
   useFrame(() => {
     if (earthRef.current) {
       earthRef.current.rotation.y += 0.0015;
     }
   });
+
+  const originName = state?.shipment?.origin || "Singapore";
+  const destName = state?.shipment?.destination || "Mumbai";
+  const currName = state?.shipment?.current_location || "Approaching Chennai Port";
+
+  const [originLat, originLon] = PRESET_LOCATIONS[originName] || PRESET_LOCATIONS["Singapore"];
+  const [destLat, destLon] = PRESET_LOCATIONS[destName] || PRESET_LOCATIONS["Mumbai"];
+  
+  let currentCoord = PRESET_LOCATIONS[currName] || PRESET_LOCATIONS["Chennai"];
+  if (state?.weather_data?.coord) {
+       currentCoord = [state.weather_data.coord.lat, state.weather_data.coord.lon];
+  }
+
+  const vOrigin = latLongToVector3(originLat, originLon, 2.0);
+  const vDest = latLongToVector3(destLat, destLon, 2.0);
+  const vCurr = latLongToVector3(currentCoord[0], currentCoord[1], 2.0);
 
   return (
     <group ref={earthRef}>
@@ -53,14 +96,13 @@ function Earth() {
         />
       </Sphere>
 
-      {/* Node: Chennai */}
-      <Node position={[1.4, 0.8, 1.1]} color="#ef4444" label="CHN" />
-      
-      {/* Node: Singapore */}
-      <Node position={[1.7, 0.4, 0.8]} color="#3b82f6" label="SGP" />
+      {/* Dynamic Nodes */}
+      <Node position={[vDest.x, vDest.y, vDest.z]} color="#d946ef" label="DEST" />
+      <Node position={[vOrigin.x, vOrigin.y, vOrigin.z]} color="#3b82f6" label="ORIG" />
+      <Node position={[vCurr.x, vCurr.y, vCurr.z]} color="#14b8a6" label="CURR" />
 
       {/* Holographic Connecting Arc */}
-      <ConnectingArc start={new THREE.Vector3(1.7, 0.4, 0.8)} end={new THREE.Vector3(1.4, 0.8, 1.1)} />
+      <ConnectingArc start={vOrigin} end={vDest} current={vCurr} />
     </group>
   );
 }
@@ -93,7 +135,7 @@ function Node({ position, color, label }: { position: [number, number, number], 
   );
 }
 
-function ConnectingArc({ start, end }: { start: THREE.Vector3, end: THREE.Vector3 }) {
+function ConnectingArc({ start, end, current }: { start: THREE.Vector3, end: THREE.Vector3, current?: THREE.Vector3 }) {
   const { geometry, dashMat } = useMemo(() => {
     const points = [];
     const segments = 50;
@@ -127,7 +169,7 @@ function ConnectingArc({ start, end }: { start: THREE.Vector3, end: THREE.Vector
   );
 }
 
-export default function GlobeModel() {
+export default function GlobeModel({ state }: { state?: any }) {
   return (
     <div className="w-full h-full min-h-[300px] relative rounded-xl overflow-hidden glass-panel bg-black/60 shadow-[0_0_30px_rgba(6,182,212,0.1)] border border-cyan-900/30">
       <div className="absolute inset-x-0 top-4 text-center z-10 pointer-events-none">
@@ -144,7 +186,7 @@ export default function GlobeModel() {
         <pointLight position={[0, 0, 0]} intensity={1} color="#06b6d4" distance={5} />
         <Stars radius={100} depth={50} count={5000} factor={4} saturation={1} fade speed={1.5} />
         <Suspense fallback={null}>
-           <Earth />
+           <Earth state={state} />
         </Suspense>
         <OrbitControls 
           enableZoom={false} 

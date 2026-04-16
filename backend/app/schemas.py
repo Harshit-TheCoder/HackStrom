@@ -96,6 +96,7 @@ class ReportOutput(BaseModel):
     blockchain_audit_hash: str = Field(default="0x000000000000")
 
 class AgentTrace(BaseModel):
+    shipment_id: Optional[str] = None
     agent_name: str
     status: str
     logs: List[str]

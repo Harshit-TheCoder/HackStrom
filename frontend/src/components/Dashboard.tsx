@@ -16,7 +16,18 @@ type Role = "OPS" | "LOGISTICS" | "FINANCE";
 
 export default function Dashboard() {
   const router = useRouter();
-  const [activeShipmentId, setActiveShipmentId] = useState("SHP-X9001");
+  
+  const [activeShipmentId, setActiveShipmentId] = useState<string>("SHP-X9001");
+  const activeTrackerRef = useRef("SHP-X9001");
+
+  useEffect(() => {
+     const stored = localStorage.getItem("activeShipmentId");
+     if (stored) {
+         setActiveShipmentId(stored);
+         activeTrackerRef.current = stored;
+     }
+  }, []);
+
   const [state, setState] = useState<any>(null);
   const [logs, setLogs] = useState<any[]>([]);
   const [isRunning, setIsRunning] = useState(false);
@@ -55,7 +66,10 @@ export default function Dashboard() {
       ws.current = new WebSocket(`ws://${host}:8000/ws/logs`);
       ws.current.onmessage = (event) => {
         const data = JSON.parse(event.data);
-        setLogs(prev => [...prev, { ...data, timestamp: Date.now() }]);
+        // Only accept explicitly routed logs or legacy system logs without IDs
+        if (!data.shipment_id || data.shipment_id === activeTrackerRef.current) {
+           setLogs(prev => [...prev, { ...data, timestamp: Date.now() }]);
+        }
       };
       
       ws.current.onclose = () => {
@@ -226,7 +240,13 @@ export default function Dashboard() {
 
              <select 
                value={activeShipmentId} 
-               onChange={(e) => { setActiveShipmentId(e.target.value); setState(null); setLogs([]); }}
+               onChange={(e) => { 
+                  setActiveShipmentId(e.target.value); 
+                  activeTrackerRef.current = e.target.value;
+                  localStorage.setItem("activeShipmentId", e.target.value);
+                  setState(null); 
+                  setLogs([]); 
+               }}
                className="bg-black/80 border border-cyan-900/60 shadow-lg text-cyan-300 text-[10px] sm:text-xs font-bold tracking-widest px-4 py-2 rounded-full outline-none hover:border-cyan-500/80 transition-all cursor-pointer w-full md:w-[280px]"
              >
                <option value="SHP-X9001">SHP-X9001: Singapore ➔ Mumbai</option>
@@ -287,7 +307,7 @@ export default function Dashboard() {
                  <div className="h-[400px]"><LocationWeatherMap state={state} /></div>
                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 h-[300px]">
                    <ShipmentTracker state={state} />
-                   <GlobeModel />
+                   <GlobeModel state={state} />
                  </div>
                </>
             ) : (
@@ -298,7 +318,7 @@ export default function Dashboard() {
                       <ShipmentTracker state={state} />
                    </motion.div>
                    <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="h-[350px]">
-                       <GlobeModel />
+                       <GlobeModel state={state} />
                    </motion.div>
                  </div>
                  <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="h-[350px]">
