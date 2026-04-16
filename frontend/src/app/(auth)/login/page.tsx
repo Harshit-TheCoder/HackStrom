@@ -17,7 +17,7 @@ export default function Login() {
     e.preventDefault();
     setError("");
     try {
-      const res = await fetch("http://localhost:8000/api/auth/login", {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
@@ -40,7 +40,7 @@ export default function Login() {
     e.preventDefault();
     setError("");
     try {
-      const res = await fetch("http://localhost:8000/api/auth/verify-mfa", {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/auth/verify-mfa`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, otp }),
@@ -58,7 +58,7 @@ export default function Login() {
   const handleGoogleMock = async () => {
     try {
         const mockPayload = btoa(JSON.stringify({ email: "user@demo.com" }));
-        const res = await fetch("http://localhost:8000/api/auth/oauth/google", {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/auth/oauth/google`, {
             method: "POST",
             headers: { "Content-Type": "application/json", "token": `mock.${mockPayload}` },
         });

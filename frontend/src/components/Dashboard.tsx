@@ -44,14 +44,14 @@ export default function Dashboard() {
   useEffect(() => {
     const fetchState = async () => {
       try {
-        const host = window.location.hostname === 'localhost' ? '127.0.0.1' : window.location.hostname;
-        const res = await fetch(`http://${host}:8000/api/state?shipment_id=${activeShipmentId}`);
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+        const res = await fetch(`${apiUrl}/api/state?shipment_id=${activeShipmentId}`);
         const data = await res.json();
         if (data && data.status !== "idle") {
           setState(data);
         }
       } catch (err) {
-        // Silently ignore fetch errors to avoid console spam during hackathon if backend isn't ready
+        // Silently ignore fetch errors to avoid console spam
       }
     };
 
@@ -62,8 +62,10 @@ export default function Dashboard() {
   // Handle WebSockets for live agent streaming
   useEffect(() => {
     const connectWs = () => {
-      const host = window.location.hostname === 'localhost' ? '127.0.0.1' : window.location.hostname;
-      ws.current = new WebSocket(`ws://${host}:8000/ws/logs`);
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+      const wsUrl = apiUrl.replace(/^http/, 'ws') + "/ws/logs";
+      
+      ws.current = new WebSocket(wsUrl);
       ws.current.onmessage = (event) => {
         const data = JSON.parse(event.data);
         // Only accept explicitly routed logs or legacy system logs without IDs
@@ -86,9 +88,9 @@ export default function Dashboard() {
 
   const toggleSimulation = async () => {
     const endpoint = isRunning ? "/api/stop" : "/api/start";
-    const host = window.location.hostname === 'localhost' ? '127.0.0.1' : window.location.hostname;
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
     try {
-      await fetch(`http://${host}:8000${endpoint}`, { method: 'POST' });
+      await fetch(`${apiUrl}${endpoint}`, { method: 'POST' });
       setIsRunning(!isRunning);
       if (!isRunning) {
         setLogs([{ agent_name: "SYSTEM", status: "RUNNING", logs: ["Initiating control tower simulation sequence..."], timestamp: Date.now() }]);

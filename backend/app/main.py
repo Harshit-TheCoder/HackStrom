@@ -13,6 +13,7 @@ from slowapi.errors import RateLimitExceeded
 from app.db.database import init_db
 from app.modules.auth import router as auth_router
 from contextlib import asynccontextmanager
+from app.infrastructure.memory import vector_memory
 from app.core.events import event_bus
 
 limiter = Limiter(key_func=get_remote_address)
@@ -21,6 +22,8 @@ limiter = Limiter(key_func=get_remote_address)
 async def lifespan(app: FastAPI):
     # Initialize DB on startup
     await init_db()
+    # Initialize Vector Memory (ChromaDB)
+    await vector_memory.initialize()
     # Start EventBus logic
     await event_bus.start()
     yield
@@ -53,7 +56,6 @@ global_contexts = {}
 simulation_running = False
 
 @app.get("/health")
-@limiter.limit("5/minute")
 async def health_check(request: Request):
     return {"status": "ok", "message": "Backend is running"}
 

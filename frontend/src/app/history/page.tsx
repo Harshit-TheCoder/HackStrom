@@ -22,8 +22,8 @@ export default function HistoryPage() {
   useEffect(() => {
     const fetchState = async () => {
       try {
-        const host = window.location.hostname === 'localhost' ? '127.0.0.1' : window.location.hostname;
-        const res = await fetch(`http://${host}:8000/api/states`);
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+        const res = await fetch(`${apiUrl}/api/states`);
         const statesData = await res.json();
         
         if (statesData) {
