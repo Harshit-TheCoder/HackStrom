@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
+import Link from "next/link";
 import ShipmentTracker from "./ShipmentTracker";
 import LocationWeatherMap from "./LocationWeatherMap";
 import ReasoningStream from "./ReasoningStream";
@@ -206,6 +207,11 @@ export default function Dashboard() {
                  {r}
                </button>
              ))}
+             <Link href="/history">
+                <button className={`px-4 py-1.5 rounded-full text-xs font-bold tracking-widest transition-all text-slate-500 hover:text-cyan-300 hover:bg-cyan-900/20`}>
+                   FLEET LOGS
+                </button>
+             </Link>
           </div>
           
           <div className="flex items-center gap-4 shrink-0">

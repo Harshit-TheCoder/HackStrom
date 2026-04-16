@@ -1,3 +1,4 @@
+import asyncio
 from app.schemas import ControlTowerContext, AgentTrace
 from app.modules.monitor import monitor_agent
 from app.modules.eta import eta_agent
@@ -17,6 +18,9 @@ class PipelineOrchestrator:
                 status="RUNNING", 
                 logs=[f"Analyzing data step..."]
             ).model_dump())
+            
+            # Artificial delay to make the reading pace realistic for human operators
+            await asyncio.sleep(1.5)
             
             result = await agent.process(context)
             setattr(context, assign_field, result)
