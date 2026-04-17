@@ -3,6 +3,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
+import { GoogleLogin } from "@react-oauth/google";
+import { setToken } from "@/lib/auth";
 
 export default function Signup() {
   const [email, setEmail] = useState("");
@@ -11,6 +13,26 @@ export default function Signup() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const router = useRouter();
+
+  const handleGoogleSuccess = async (credentialResponse: any) => {
+    setError("");
+    setSuccess("");
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/auth/oauth/google`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "token": credentialResponse.credential,
+        },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "Google sign-up failed");
+      setToken(data.access_token);
+      router.push("/");
+    } catch (err: any) {
+      setError(err.message);
+    }
+  };
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -87,6 +109,23 @@ export default function Signup() {
             Encrypt & Register Identity
           </button>
         </form>
+
+        <div className="relative my-6 flex items-center gap-3">
+          <div className="flex-1 h-px bg-white/10" />
+          <span className="text-xs text-neutral-500 uppercase tracking-widest">or</span>
+          <div className="flex-1 h-px bg-white/10" />
+        </div>
+
+        <div className="flex justify-center">
+          <GoogleLogin
+            onSuccess={handleGoogleSuccess}
+            onError={() => setError("Google sign-up failed. Please try again.")}
+            theme="filled_black"
+            shape="pill"
+            text="signup_with"
+            width="100%"
+          />
+        </div>
 
         <div className="mt-6 text-center text-sm text-neutral-500">
           Already a certified operative?{" "}
